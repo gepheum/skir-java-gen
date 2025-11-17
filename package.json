@@ -1,0 +1,46 @@
+{
+  "name": "soia-java-gen",
+  "version": "0.0.1",
+  "description": "",
+  "keywords": [],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gepheum/soia-kotlin-gen.git"
+  },
+  "license": "ISC",
+  "author": "Tyler Fibonacci <gepheum@gmail.com>",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js"
+    }
+  },
+  "module": "./dist/index.js",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "format-soia": "cd e2e-test && soiac --fmt fix && cd ..",
+    "format-soia:check": "cd e2e-test && soiac --fmt check && cd ..",
+    "format-java": "cd e2e-test && echo TODO && cd ..",
+    "format-java:check": "cd e2e-test && echo TODO && cd ..",
+    "format": "prettier --write \"**/*.ts\" && npm run format-soia && npm run format-java",
+    "format:check": "prettier --check \"**/*.ts\" && npm run format-soia:check && npm run format-java:check",
+    "test": "npm run build && cd e2e-test && soiac -r . && ./gradlew build && cd ..",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "prettier": "^3.2.4",
+    "prettier-plugin-organize-imports": "^4.2.0",
+    "soiac": "^1.0.51",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}
