@@ -1,3 +1,5 @@
+// TODO: just use sorted fields everywhere
+
 import {
   type CodeGenerator,
   type Constant,
@@ -115,11 +117,15 @@ class JavaSourceFileGenerator {
     const recordLocation = recordMap.get(record.key)!;
     const className = this.namer.getClassName(recordLocation).name;
     const { fields } = record;
+    const sortedFields = [...fields].sort((a, b) =>
+      a.name.text.localeCompare(b.name.text),
+    );
     this.push(
       "public ",
       nested === "nested" ? "static " : "",
       `final class ${className} {\n`,
     );
+
     // Declare fields
     for (const field of fields) {
       const fieldName = namer.structFieldToJavaName(field);
@@ -128,6 +134,7 @@ class JavaSourceFileGenerator {
     }
     const unrecognizedFieldsType = `land.soia.internal.UnrecognizedFields<${className}>`;
     this.push(`private final ${unrecognizedFieldsType} _u;\n\n`);
+
     // Constructor
     this.push(`private ${className}(\n`);
     for (const field of fields) {
@@ -141,6 +148,7 @@ class JavaSourceFileGenerator {
       this.push(`this.${fieldName} = ${fieldName};\n`);
     }
     this.push("this._u = _u;\n", "}\n\n");
+
     // DEFAULT instance
     this.push(`private ${className}() {\n`);
     for (const field of fields) {
@@ -157,6 +165,7 @@ class JavaSourceFileGenerator {
       "}\n\n",
       `public static final ${className} DEFAULT = new ${className}();\n\n`,
     );
+
     // Getters
     for (const field of fields) {
       const fieldName = namer.structFieldToJavaName(field);
@@ -176,6 +185,7 @@ class JavaSourceFileGenerator {
       }
       this.push("}\n\n");
     }
+
     // Methods
     this.push(`public Builder toBuilder() {\n`);
     this.push(`return new Builder(\n`);
@@ -184,16 +194,73 @@ class JavaSourceFileGenerator {
       this.push(`this.${fieldName},\n`);
     }
     this.push("this._u);\n", "}\n\n");
-    this.push("public static Builder partialBuilder() {\n");
-    this.push("return new Builder();\n");
-    this.push("}\n\n");
+
+    // builder()
+    {
+      const firstField = sortedFields[0];
+      const retType = firstField
+        ? "Builder_At" +
+          convertCase(firstField.name.text, "lower_underscore", "UpperCamel")
+        : "Builder_Done";
+      this.push(
+        `public static ${retType} builder() {\n`,
+        "return new Builder();\n",
+        "}\n\n",
+      );
+    }
+
+    // partialBuilder()
+    this.push(
+      "public static Builder partialBuilder() {\n",
+      "return new Builder();\n",
+      "}\n\n",
+    );
+
+    // Builder_At? interfaces
+    for (const [index, field] of sortedFields.entries()) {
+      const fieldName = namer.structFieldToJavaName(field);
+      const nextField =
+        index < sortedFields.length - 1 ? sortedFields[index + 1] : null;
+      const upperCamelName = convertCase(
+        field.name.text,
+        "lower_underscore",
+        "UpperCamel",
+      );
+      const retType = nextField
+        ? "Builder_At" +
+          convertCase(nextField.name.text, "lower_underscore", "UpperCamel")
+        : "Builder_Done";
+      const paramType = typeSpeller.getJavaType(field.type!, "initializer");
+      this.push(
+        `public interface Builder_At${upperCamelName} {\n`,
+        `${retType} set${upperCamelName}(${paramType} ${fieldName});\n`,
+        "}\n\n",
+      );
+    }
+    this.push(
+      `public interface Builder_Done {\n`,
+      `${className} build();\n`,
+      "}\n\n",
+    );
+
     // Builder class
-    this.push("public static final class Builder {\n");
+    this.push("public static final class Builder implements ");
+    for (const field of sortedFields) {
+      const upperCamelName = convertCase(
+        field.name.text,
+        "lower_underscore",
+        "UpperCamel",
+      );
+      this.push(`Builder_At${upperCamelName}, `);
+    }
+    this.push("Builder_Done {\n");
     for (const field of fields) {
       const fieldName = namer.structFieldToJavaName(field);
       const type = typeSpeller.getJavaType(field.type!, "frozen");
       this.push(`private ${type} ${fieldName};\n`);
     }
+
+    // Builder constructors
     this.push(
       `private final ${unrecognizedFieldsType} _u;\n\n`,
       "private Builder(\n",
@@ -217,6 +284,8 @@ class JavaSourceFileGenerator {
       this.push(`this.${fieldName} = ${defaultExpr};\n`);
     }
     this.push("this._u = null;\n", "}\n\n");
+
+    // Setters
     for (const field of fields) {
       const fieldName = namer.structFieldToJavaName(field);
       const upperCamelName = convertCase(
@@ -227,6 +296,7 @@ class JavaSourceFileGenerator {
       const type = field.type!;
       const javaType = typeSpeller.getJavaType(type, "initializer");
       this.push(
+        "@java.lang.Override\n",
         `public Builder set${upperCamelName}(${javaType} ${fieldName}) {\n`,
       );
       const toFrozenExpr = this.toFrozenExpression(
@@ -239,14 +309,19 @@ class JavaSourceFileGenerator {
       this.push(`return this;\n`);
       this.push(`}\n\n`);
     }
-    this.push(`public ${className} build() {\n`);
-    this.push(`return new ${className}(\n`);
+    this.push(
+      "@java.lang.Override\n",
+      `public ${className} build() {\n`,
+      `return new ${className}(\n`,
+    );
     for (const field of fields) {
       const fieldName = namer.structFieldToJavaName(field);
       this.push(`this.${fieldName},\n`);
     }
     this.push("this._u);\n", "}\n\n");
     this.push("}\n\n");
+
+    // Nested classes
     this.writeClassesForNestedRecords(record);
     this.push("}\n\n");
     // TODO
