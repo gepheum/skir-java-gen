@@ -116,10 +116,8 @@ class JavaSourceFileGenerator {
     const { namer, recordMap, typeSpeller } = this;
     const recordLocation = recordMap.get(record.key)!;
     const className = this.namer.getClassName(recordLocation).name;
-    const { fields } = record;
-    const sortedFields = [...fields].sort((a, b) =>
-      a.name.text.localeCompare(b.name.text),
-    );
+    const fields = [...record.fields];
+    fields.sort((a, b) => a.name.text.localeCompare(b.name.text));
     this.push(
       "public ",
       nested === "nested" ? "static " : "",
@@ -197,7 +195,7 @@ class JavaSourceFileGenerator {
 
     // builder()
     {
-      const firstField = sortedFields[0];
+      const firstField = fields[0];
       const retType = firstField
         ? "Builder_At" +
           convertCase(firstField.name.text, "lower_underscore", "UpperCamel")
@@ -217,10 +215,9 @@ class JavaSourceFileGenerator {
     );
 
     // Builder_At? interfaces
-    for (const [index, field] of sortedFields.entries()) {
+    for (const [index, field] of fields.entries()) {
       const fieldName = namer.structFieldToJavaName(field);
-      const nextField =
-        index < sortedFields.length - 1 ? sortedFields[index + 1] : null;
+      const nextField = index < fields.length - 1 ? fields[index + 1] : null;
       const upperCamelName = convertCase(
         field.name.text,
         "lower_underscore",
@@ -245,7 +242,7 @@ class JavaSourceFileGenerator {
 
     // Builder class
     this.push("public static final class Builder implements ");
-    for (const field of sortedFields) {
+    for (const field of fields) {
       const upperCamelName = convertCase(
         field.name.text,
         "lower_underscore",
