@@ -110,6 +110,8 @@ struct NameCollision {
   hash_code: bool;
   equals: bool;
   to_string: bool;
+
+  matrix: [[int32]];
 }
 
 struct RecA {

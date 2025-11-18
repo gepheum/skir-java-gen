@@ -1,6 +1,7 @@
 import {
   type CodeGenerator,
   type Constant,
+  convertCase,
   type Method,
   Record,
   type RecordKey,
@@ -126,9 +127,7 @@ class JavaSourceFileGenerator {
       this.push(`private final ${type} ${fieldName};\n`);
     }
     const unrecognizedFieldsType = `land.soia.internal.UnrecognizedFields<${className}>`;
-    this.push(
-      `private final ${unrecognizedFieldsType} _unrecognizedFields;\n\n`,
-    );
+    this.push(`private final ${unrecognizedFieldsType} _u;\n\n`);
     // Constructor
     this.push(`private ${className}(\n`);
     for (const field of fields) {
@@ -136,12 +135,12 @@ class JavaSourceFileGenerator {
       const type = typeSpeller.getJavaType(field.type!, "frozen");
       this.push(`${type} ${fieldName},\n`);
     }
-    this.push(`${unrecognizedFieldsType} _unrecognizedFields\n`, ") {\n");
+    this.push(`${unrecognizedFieldsType} _u\n`, ") {\n");
     for (const field of fields) {
       const fieldName = namer.structFieldToJavaName(field);
       this.push(`this.${fieldName} = ${fieldName};\n`);
     }
-    this.push("this._unrecognizedFields = _unrecognizedFields;\n", "}\n\n");
+    this.push("this._u = _u;\n", "}\n\n");
     // DEFAULT instance
     this.push(`private ${className}() {\n`);
     for (const field of fields) {
@@ -154,7 +153,7 @@ class JavaSourceFileGenerator {
       }
     }
     this.push(
-      "this._unrecognizedFields = null;\n",
+      "this._u = null;\n",
       "}\n\n",
       `public static final ${className} DEFAULT = new ${className}();\n\n`,
     );
@@ -184,7 +183,7 @@ class JavaSourceFileGenerator {
       const fieldName = namer.structFieldToJavaName(field);
       this.push(`this.${fieldName},\n`);
     }
-    this.push("this._unrecognizedFields);\n", "}\n\n");
+    this.push("this._u);\n", "}\n\n");
     this.push("public static Builder partialBuilder() {\n");
     this.push("return new Builder();\n");
     this.push("}\n\n");
@@ -196,7 +195,7 @@ class JavaSourceFileGenerator {
       this.push(`private ${type} ${fieldName};\n`);
     }
     this.push(
-      `private ${unrecognizedFieldsType} _unrecognizedFields;\n\n`,
+      `private final ${unrecognizedFieldsType} _u;\n\n`,
       "private Builder(\n",
     );
     for (const field of fields) {
@@ -204,12 +203,12 @@ class JavaSourceFileGenerator {
       const type = typeSpeller.getJavaType(field.type!, "frozen");
       this.push(`${type} ${fieldName},\n`);
     }
-    this.push(`${unrecognizedFieldsType} _unrecognizedFields\n`, ") {\n");
+    this.push(`${unrecognizedFieldsType} _u\n`, ") {\n");
     for (const field of fields) {
       const fieldName = namer.structFieldToJavaName(field);
       this.push(`this.${fieldName} = ${fieldName};\n`);
     }
-    this.push("this._unrecognizedFields = _unrecognizedFields;\n", "}\n\n");
+    this.push("this._u = _u;\n", "}\n\n");
 
     this.push("private Builder() {\n");
     for (const field of fields) {
@@ -217,7 +216,36 @@ class JavaSourceFileGenerator {
       const defaultExpr = this.getDefaultExpression(field.type!);
       this.push(`this.${fieldName} = ${defaultExpr};\n`);
     }
-    this.push("this._unrecognizedFields = null;\n", "}\n\n");
+    this.push("this._u = null;\n", "}\n\n");
+    for (const field of fields) {
+      const fieldName = namer.structFieldToJavaName(field);
+      const upperCamelName = convertCase(
+        field.name.text,
+        "lower_underscore",
+        "UpperCamel",
+      );
+      const type = field.type!;
+      const javaType = typeSpeller.getJavaType(type, "initializer");
+      this.push(
+        `public Builder set${upperCamelName}(${javaType} ${fieldName}) {\n`,
+      );
+      const toFrozenExpr = this.toFrozenExpression(
+        fieldName,
+        type,
+        "can-be-null",
+        "_e",
+      );
+      this.push(`this.${fieldName} = ${toFrozenExpr};\n`);
+      this.push(`return this;\n`);
+      this.push(`}\n\n`);
+    }
+    this.push(`public ${className} build() {\n`);
+    this.push(`return new ${className}(\n`);
+    for (const field of fields) {
+      const fieldName = namer.structFieldToJavaName(field);
+      this.push(`this.${fieldName},\n`);
+    }
+    this.push("this._u);\n", "}\n\n");
     this.push("}\n\n");
     this.writeClassesForNestedRecords(record);
     this.push("}\n\n");
@@ -237,9 +265,12 @@ class JavaSourceFileGenerator {
       nested === "nested" ? "static " : "",
       `final class ${className} {\n`,
     );
-    this.push("public enum Kind {\n", "}\n\n");
+    this.push("public enum Kind {\n", "UNKNOWN\n", "}\n\n");
     this.push(
       `public static final ${className} UNKNOWN = new ${className}();\n`,
+      "public Kind kind() {\n",
+      "return Kind.UNKNOWN;\n",
+      "}\n\n",
     );
     this.writeClassesForNestedRecords(record);
     this.push("}\n\n");
@@ -879,8 +910,11 @@ class JavaSourceFileGenerator {
             return '""';
           case "bytes":
             return "okio.ByteString.EMPTY";
+          default: {
+            const _: never = type.primitive;
+            throw Error();
+          }
         }
-        break;
       }
       case "array": {
         if (type.key) {
@@ -908,49 +942,76 @@ class JavaSourceFileGenerator {
     }
   }
 
-  // private toFrozenExpression(inputExpr: string, type: ResolvedType): string {
-  //   const { namer } = this;
-  //   switch (type.kind) {
-  //     case "primitive": {
-  //       return inputExpr;
-  //     }
-  //     case "array": {
-  //       const itemToFrozenExpr = this.toFrozenExpression("it", type.item);
-  //       if (type.key) {
-  //         const path = type.key.path
-  //           .map((f) => namer.structFieldToKotlinName(f.name.text))
-  //           .join(".");
-  //         if (itemToFrozenExpr === "it") {
-  //           return `land.soia.internal.toKeyedList(${inputExpr}, "${path}", { it.${path} })`;
-  //         } else {
-  //           return `land.soia.internal.toKeyedList(${inputExpr}, "${path}", { it.${path} }, { ${itemToFrozenExpr} })`;
-  //         }
-  //       } else {
-  //         if (itemToFrozenExpr === "it") {
-  //           return `land.soia.internal.toFrozenList(${inputExpr})`;
-  //         } else {
-  //           return `land.soia.internal.toFrozenList(${inputExpr}, { ${itemToFrozenExpr} })`;
-  //         }
-  //       }
-  //     }
-  //     case "optional": {
-  //       const otherExpr = this.toFrozenExpression(inputExpr, type.other);
-  //       if (otherExpr === inputExpr) {
-  //         return otherExpr;
-  //       } else {
-  //         return `if (${inputExpr} != null) ${otherExpr} else null`;
-  //       }
-  //     }
-  //     case "record": {
-  //       const record = this.typeSpeller.recordMap.get(type.key)!;
-  //       if (record.record.recordType === "struct") {
-  //         return `${inputExpr}.toFrozen()`;
-  //       } else {
-  //         return inputExpr;
-  //       }
-  //     }
-  //   }
-  // }
+  private toFrozenExpression(
+    inputExpr: string,
+    type: ResolvedType,
+    nullability: "can-be-null" | "never-null",
+    it: string,
+  ): string {
+    const { namer } = this;
+    switch (type.kind) {
+      case "primitive": {
+        switch (type.primitive) {
+          case "bool":
+          case "int32":
+          case "int64":
+          case "uint64":
+          case "float32":
+          case "float64":
+            return inputExpr;
+          case "timestamp":
+          case "string":
+          case "bytes":
+            return nullability === "can-be-null"
+              ? `java.util.Objects.requireNonNull(${inputExpr})`
+              : inputExpr;
+          default: {
+            const _: never = type.primitive;
+            throw Error();
+          }
+        }
+      }
+      case "array": {
+        const itemToFrozenExpr = this.toFrozenExpression(
+          it,
+          type.item,
+          "can-be-null",
+          it + "_",
+        );
+        const frozenListKt = "land.soia.internal.FrozenListKt";
+        if (type.key) {
+          const path = type.key.path
+            .map((f) => namer.structFieldToJavaName(f.name.text) + "()")
+            .join(".");
+          if (itemToFrozenExpr === it) {
+            return `${frozenListKt}.toKeyedList(\n${inputExpr},\n"${path}",\n(${it}) -> ${it}.${path}\n)`;
+          } else {
+            return `${frozenListKt}.toKeyedList(\n${inputExpr},\n"${path}",\n(${it}) -> ${it}.${path},\n(${it}) -> ${itemToFrozenExpr}\n)`;
+          }
+        } else {
+          if (itemToFrozenExpr === it) {
+            return `${frozenListKt}.toFrozenList(${inputExpr})`;
+          } else {
+            return `${frozenListKt}.toFrozenList(\n${inputExpr},\n(${it}) -> ${itemToFrozenExpr}\n)`;
+          }
+        }
+      }
+      case "optional": {
+        const otherExpr = this.toFrozenExpression(
+          it,
+          type.other,
+          "never-null",
+          it + "_",
+        );
+        return `${inputExpr}.map(\n(${it}) -> ${otherExpr}\n)`;
+      }
+      case "record": {
+        return nullability === "can-be-null"
+          ? `java.util.Objects.requireNonNull(${inputExpr})`
+          : inputExpr;
+      }
+    }
+  }
 
   private push(...code: string[]): void {
     this.code += code.join("");

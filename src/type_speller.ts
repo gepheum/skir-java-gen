@@ -1,11 +1,7 @@
 import type { RecordKey, RecordLocation, ResolvedType } from "soiac";
 import { ClassName, Namer } from "./naming.js";
 
-export type TypeFlavor =
-  | "initializer"
-  | "frozen"
-  | "frozen-object"
-  | "frozen-key";
+export type TypeFlavor = "initializer" | "frozen" | "frozen-key";
 
 /**
  * Transforms a type found in a `.soia` file into a Java type.
@@ -16,7 +12,11 @@ export class TypeSpeller {
     private readonly namer: Namer,
   ) {}
 
-  getJavaType(type: ResolvedType, flavor: TypeFlavor): string {
+  getJavaType(
+    type: ResolvedType,
+    flavor: TypeFlavor,
+    mustBeObject?: "must-be-object",
+  ): string {
     switch (type.kind) {
       case "record": {
         const recordLocation = this.recordMap.get(type.key)!;
@@ -27,11 +27,7 @@ export class TypeSpeller {
         }
         // An enum.
         const _: "enum" = record.recordType;
-        if (
-          flavor === "initializer" ||
-          flavor === "frozen" ||
-          flavor === "frozen-object"
-        ) {
+        if (flavor === "initializer" || flavor === "frozen") {
           return className;
         } else if (flavor === "frozen-key") {
           return `${className}.Kind`;
@@ -41,17 +37,17 @@ export class TypeSpeller {
         }
       }
       case "array": {
-        const itemType = this.getJavaType(type.item, "frozen-object");
+        const itemType = this.getJavaType(type.item, flavor, "must-be-object");
         if (flavor === "initializer") {
-          return `java.util.Iterable<${itemType}>`;
-        } else if (
-          flavor === "frozen" ||
-          flavor === "frozen-key" ||
-          flavor === "frozen-object"
-        ) {
+          return `java.lang.Iterable<${itemType}>`;
+        } else if (flavor === "frozen" || flavor === "frozen-key") {
           if (type.key) {
             const { keyType } = type.key;
-            const javaKeyType = this.getJavaType(keyType, "frozen-key");
+            const javaKeyType = this.getJavaType(
+              keyType,
+              "frozen-key",
+              "must-be-object",
+            );
             return `land.soia.KeyedList<${itemType}, ${javaKeyType}>`;
           } else {
             return `java.util.List<${itemType}>`;
@@ -62,32 +58,16 @@ export class TypeSpeller {
         }
       }
       case "optional": {
-        const otherType = this.getJavaType(type.other, "frozen-object");
+        const otherType = this.getJavaType(
+          type.other,
+          flavor,
+          "must-be-object",
+        );
         return `java.util.Optional<${otherType}>`;
       }
       case "primitive": {
         const { primitive } = type;
-        if (flavor === "initializer" || flavor === "frozen") {
-          switch (primitive) {
-            case "bool":
-              return "boolean";
-            case "int32":
-              return "int";
-            case "int64":
-            case "uint64":
-              return "long";
-            case "float32":
-              return "float";
-            case "float64":
-              return "double";
-            case "timestamp":
-              return "java.time.Instant";
-            case "string":
-              return "java.lang.String";
-            case "bytes":
-              return "okio.ByteString";
-          }
-        } else if (flavor === "frozen-key" || flavor === "frozen-object") {
+        if (mustBeObject) {
           switch (primitive) {
             case "bool":
               return "java.lang.Boolean";
@@ -106,10 +86,35 @@ export class TypeSpeller {
               return "java.lang.String";
             case "bytes":
               return "okio.ByteString";
+            default: {
+              const _: never = primitive;
+              throw TypeError();
+            }
           }
         } else {
-          const _: never = flavor;
-          throw TypeError();
+          switch (primitive) {
+            case "bool":
+              return "boolean";
+            case "int32":
+              return "int";
+            case "int64":
+            case "uint64":
+              return "long";
+            case "float32":
+              return "float";
+            case "float64":
+              return "double";
+            case "timestamp":
+              return "java.time.Instant";
+            case "string":
+              return "java.lang.String";
+            case "bytes":
+              return "okio.ByteString";
+            default: {
+              const _: never = primitive;
+              throw TypeError();
+            }
+          }
         }
       }
     }
