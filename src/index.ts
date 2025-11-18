@@ -305,9 +305,22 @@ class JavaSourceFileGenerator {
         "can-be-null",
         "_e",
       );
-      this.push(`this.${fieldName} = ${toFrozenExpr};\n`);
-      this.push(`return this;\n`);
-      this.push(`}\n\n`);
+      this.push(
+        `this.${fieldName} = ${toFrozenExpr};\n`,
+        "return this;\n",
+        "}\n\n",
+      );
+      const isStruct =
+        type.kind === "record" &&
+        recordMap.get(type.key)!.record.recordType === "struct";
+      if (isStruct) {
+        const updaterType = `java.util.function.Function<? super ${javaType}, ? extends ${javaType}>`;
+        this.push(
+          `public Builder update${upperCamelName}(${updaterType} updater) {\n`,
+          `return set${upperCamelName}(updater.apply(this.${fieldName}));\n`,
+          "}\n\n",
+        );
+      }
     }
     this.push(
       "@java.lang.Override\n",
