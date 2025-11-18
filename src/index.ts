@@ -184,7 +184,7 @@ class JavaSourceFileGenerator {
       this.push("}\n\n");
     }
 
-    // Methods
+    // toBuilder()
     this.push(`public Builder toBuilder() {\n`);
     this.push(`return new Builder(\n`);
     for (const field of fields) {
@@ -192,6 +192,35 @@ class JavaSourceFileGenerator {
       this.push(`this.${fieldName},\n`);
     }
     this.push("this._u);\n", "}\n\n");
+
+    // equals()
+    this.push(
+      "@java.lang.Override\n",
+      "public boolean equals(Object other) {\n",
+      "if (this == other) return true;\n",
+      `if (!(other instanceof ${className})) return false;\n`,
+      `return java.util.Arrays.equals(_equalsProxy(), ((${className}) other)._equalsProxy());\n`,
+      "}\n\n",
+    );
+
+    // hashCode()
+    this.push(
+      "@java.lang.Override\n",
+      "public int hashCode() {\n",
+      `return java.util.Arrays.hashCode(_equalsProxy());\n`,
+      "}\n\n",
+    );
+
+    // _equalsProxy()
+    this.push(
+      "private Object[] _equalsProxy() {\n",
+      "return new Object[] {\n",
+      fields
+        .map((field) => "this." + namer.structFieldToJavaName(field))
+        .join(",\n"),
+      "\n};\n",
+      "}\n\n",
+    );
 
     // builder()
     {

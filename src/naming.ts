@@ -122,9 +122,9 @@ const JAVA_OBJECT_SYMBOLS: ReadonlySet<string> = new Set([
 
 // TODO: update
 const GENERATED_STRUCT_SYMBOLS: ReadonlySet<string> = new Set([
-  "copy",
-  "toFrozen",
-  "toMutable",
+  "builder",
+  "partialBuilder",
+  "toBuilder",
 ]);
 
 export function toEnumConstantName(field: Field): string {
