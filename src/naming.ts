@@ -126,6 +126,7 @@ const GENERATED_STRUCT_SYMBOLS: ReadonlySet<string> = new Set([
   "partialBuilder",
   "serializer",
   "toBuilder",
+  "typeDescriptor",
 ]);
 
 export function toEnumConstantName(field: Field): string {

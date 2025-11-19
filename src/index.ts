@@ -209,6 +209,14 @@ class JavaSourceFileGenerator {
       "}\n\n",
     );
 
+    // toString()
+    this.push(
+      "@java.lang.Override\n",
+      "public java.lang.String toString() {\n",
+      `return serializer().toJsonCode(this, land.soia.JsonFlavor.READABLE);\n`,
+      "}\n\n",
+    );
+
     // _equalsProxy()
     this.push(
       "private Object[] _equalsProxy() {\n",
@@ -358,7 +366,7 @@ class JavaSourceFileGenerator {
     this.push("this._u);\n", "}\n\n");
     this.push("}\n\n");
 
-    // serializerImpl
+    // _serializerImpl
     {
       const type = `land.soia.internal.StructSerializer<${className}, ${className}.Builder>`;
       this.push(
@@ -377,7 +385,7 @@ class JavaSourceFileGenerator {
         ");\n\n",
       );
     }
-    // serializer
+    // _serializer
     this.push(
       `private static final land.soia.Serializer<${className}> _serializer = (\n`,
       "land.soia.internal.SerializersKt.makeSerializer(_serializerImpl)\n",
@@ -387,6 +395,12 @@ class JavaSourceFileGenerator {
     this.push(
       `public static land.soia.Serializer<${className}> serializer() {\n`,
       "return _serializer;\n",
+      "};\n\n",
+    );
+    // typeDescriptor()
+    this.push(
+      `public static land.soia.reflection.StructDescriptor.Reflective<${className}, ${className}.Builder> typeDescriptor() {\n`,
+      "return _serializerImpl.getTypeDescriptor();\n",
       "};\n\n",
     );
 
