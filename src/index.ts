@@ -1,5 +1,3 @@
-// TODO: just use sorted fields everywhere
-
 import {
   type CodeGenerator,
   type Constant,
@@ -280,17 +278,17 @@ class JavaSourceFileGenerator {
       this.push(`Builder_At${upperCamelName}, `);
     }
     this.push("Builder_Done {\n");
+
+    // Builder fields
     for (const field of fields) {
       const fieldName = namer.structFieldToJavaName(field);
       const type = typeSpeller.getJavaType(field.type!, "frozen");
       this.push(`private ${type} ${fieldName};\n`);
     }
+    this.push(`private ${unrecognizedFieldsType} _u;\n\n`);
 
     // Builder constructors
-    this.push(
-      `private final ${unrecognizedFieldsType} _u;\n\n`,
-      "private Builder(\n",
-    );
+    this.push("private Builder(\n");
     for (const field of fields) {
       const fieldName = namer.structFieldToJavaName(field);
       const type = typeSpeller.getJavaType(field.type!, "frozen");
@@ -360,6 +358,62 @@ class JavaSourceFileGenerator {
     this.push("this._u);\n", "}\n\n");
     this.push("}\n\n");
 
+    // serializerImpl
+    {
+      const type = `land.soia.internal.StructSerializer<${className}, ${className}.Builder>`;
+      this.push(
+        `private static final ${type} _serializerImpl = (\n`,
+        "new land.soia.internal.StructSerializer<>(\n",
+        `"${getRecordId(recordLocation)}",\n`,
+        "DEFAULT,\n",
+        `(${className} it) -> it != null ? it.toBuilder() : partialBuilder(),\n`,
+        `(${className}.Builder it) -> it.build(),\n`,
+        `(${className} it) -> it._u,\n`,
+        `(${className}.Builder builder, ${unrecognizedFieldsType} u) -> {\n`,
+        `builder._u = u;\n`,
+        "return null;\n",
+        "}\n",
+        ")\n",
+        ");\n\n",
+      );
+    }
+    // serializer
+    this.push(
+      `private static final land.soia.Serializer<${className}> _serializer = (\n`,
+      "land.soia.internal.SerializersKt.makeSerializer(_serializerImpl)\n",
+      ");\n\n",
+    );
+    // serializer()
+    this.push(
+      `public static land.soia.Serializer<${className}> serializer() {\n`,
+      "return _serializer;\n",
+      "};\n\n",
+    );
+
+    // Finalize serializer
+    this.push("static {\n");
+    for (const field of fields) {
+      const soiaName = field.name.text;
+      const javadName = namer.structFieldToJavaName(field);
+      this.push(
+        "_serializerImpl.addField(\n",
+        `"${soiaName}",\n`,
+        '"",\n',
+        `${field.number},\n`,
+        `${typeSpeller.getSerializerExpression(field.type!)},\n`,
+        `(it) -> it.${javadName},\n`,
+        "(builder, v) -> {\n",
+        `builder.${javadName} = v;\n`,
+        "return null;\n",
+        "}\n",
+        ");\n",
+      );
+    }
+    for (const removedNumber of record.removedNumbers) {
+      this.push(`_serializerImpl.addRemovedNumber(${removedNumber});\n`);
+    }
+    this.push("_serializerImpl.finalizeStruct();\n", "}\n\n");
+
     // Nested classes
     this.writeClassesForNestedRecords(record);
     this.push("}\n\n");
@@ -385,6 +439,12 @@ class JavaSourceFileGenerator {
       "public Kind kind() {\n",
       "return Kind.UNKNOWN;\n",
       "}\n\n",
+    );
+    // serializer()
+    this.push(
+      `public static land.soia.Serializer<${className}> serializer() {\n`,
+      `return (land.soia.Serializer<${className}>) null;\n`,
+      "};\n\n",
     );
     this.writeClassesForNestedRecords(record);
     this.push("}\n\n");
@@ -1237,6 +1297,14 @@ class JavaSourceFileGenerator {
   private readonly packagePrefix: string;
   private readonly namer: Namer;
   private code = "";
+}
+
+function getRecordId(struct: RecordLocation): string {
+  const modulePath = struct.modulePath;
+  const qualifiedRecordName = struct.recordAncestors
+    .map((r) => r.name.text)
+    .join(".");
+  return `${modulePath}:${qualifiedRecordName}`;
 }
 
 export const GENERATOR = new JavaCodeGenerator();

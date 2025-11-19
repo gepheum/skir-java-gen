@@ -124,6 +124,7 @@ const JAVA_OBJECT_SYMBOLS: ReadonlySet<string> = new Set([
 const GENERATED_STRUCT_SYMBOLS: ReadonlySet<string> = new Set([
   "builder",
   "partialBuilder",
+  "serializer",
   "toBuilder",
 ]);
 

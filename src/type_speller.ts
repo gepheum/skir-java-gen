@@ -155,30 +155,30 @@ export class TypeSpeller {
         if (type.key) {
           const keyChain = type.key.path.map((f) => f.name.text).join(".");
           const path = type.key.path
-            .map((f) => this.namer.structFieldToJavaName(f.name.text))
+            .map((f) => this.namer.structFieldToJavaName(f.name.text) + "()")
             .join(".");
           return (
-            "land.soia.internal.keyedListSerializer(\n" +
+            "land.soia.internal.ListSerializerKt.keyedListSerializer(\n" +
             this.getSerializerExpression(type.item) +
-            `,\n"${keyChain}",\n{ it.${path} },\n)`
+            `,\n"${keyChain}",\n(it) -> it.${path}\n)`
           );
         } else {
           return (
             "land.soia.Serializers.list(\n" +
             this.getSerializerExpression(type.item) +
-            ",\n)"
+            "\n)"
           );
         }
       }
       case "optional": {
         return (
-          `land.soia.Serializers.optional(\n` +
+          `land.soia.Serializers.javaOptional(\n` +
           this.getSerializerExpression(type.other) +
-          `,\n)`
+          `\n)`
         );
       }
       case "record": {
-        return this.getClassName(type.key).qualifiedName + ".Serializer";
+        return this.getClassName(type.key).qualifiedName + ".serializer()";
       }
     }
   }
