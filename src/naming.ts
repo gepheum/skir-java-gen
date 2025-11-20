@@ -35,7 +35,8 @@ export class Namer {
       if (
         name === "Kind" ||
         name === "Builder" ||
-        /[^a-z]Wrapper$/.test(name)
+        /[^a-z]Wrapper$/.test(name) ||
+        (i === 0 && (name === "Constants" || name === "Methods"))
       ) {
         name += "_";
       }
@@ -142,12 +143,3 @@ export interface ClassName {
    */
   qualifiedName: string;
 }
-
-/** Generated types nested within a struct class. */
-const STRUCT_NESTED_TYPE_NAMES: ReadonlySet<string> = new Set(["Mutable"]);
-
-/** Generated types nested within an enum class. */
-const ENUM_NESTED_TYPE_NAMES: ReadonlySet<string> = new Set([
-  "Kind",
-  "Unknown",
-]);

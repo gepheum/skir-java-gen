@@ -74,8 +74,9 @@ export class TypeSpeller {
             case "int32":
               return "java.lang.Integer";
             case "int64":
-            case "uint64":
               return "java.lang.Long";
+            case "uint64":
+              return "kotlin.ULong";
             case "float32":
               return "java.lang.Float";
             case "float64":
@@ -98,8 +99,9 @@ export class TypeSpeller {
             case "int32":
               return "int";
             case "int64":
-            case "uint64":
               return "long";
+            case "uint64":
+              return "kotlin.ULong";
             case "float32":
               return "float";
             case "float64":

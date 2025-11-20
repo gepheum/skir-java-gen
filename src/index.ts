@@ -1,3 +1,8 @@
+// TODO: fix name conflicts in 'naming.ts'
+// TODO: put back enum serializer
+// TODO: golden tests
+// TODO: Constants.Pi.VALUE??? or Constants.PI
+
 import {
   type CodeGenerator,
   type Constant,
@@ -28,35 +33,72 @@ class JavaCodeGenerator implements CodeGenerator<Config> {
 
   generateCode(input: CodeGenerator.Input<Config>): CodeGenerator.Output {
     const { recordMap, config } = input;
-    const outputFiles: CodeGenerator.OutputFile[] = [];
+    const javaSourceFiles: JavaSourceFileGenerator[] = [];
     for (const module of input.modules) {
-      for (const declaration of module.declarations) {
-        if (
-          declaration.kind === "import" ||
-          declaration.kind === "import-alias"
-        ) {
+      for (const record of module.records) {
+        if (record.recordAncestors.length !== 1) {
+          // Only consider top-level records
           continue;
         }
-        const sourceFile = new JavaSourceFileGenerator(
-          declaration,
-          module.path,
-          recordMap,
-          config,
+        javaSourceFiles.push(
+          new JavaSourceFileGenerator(
+            record.record,
+            module.path,
+            recordMap,
+            config,
+          ),
         );
-        outputFiles.push({
-          path: sourceFile.path,
-          code: sourceFile.generate(),
-        });
+      }
+      if (module.methods.length > 0) {
+        javaSourceFiles.push(
+          new JavaSourceFileGenerator(
+            {
+              kind: "methods",
+              methods: module.methods,
+            },
+            module.path,
+            recordMap,
+            config,
+          ),
+        );
+      }
+      if (module.constants.length > 0) {
+        javaSourceFiles.push(
+          new JavaSourceFileGenerator(
+            {
+              kind: "constants",
+              constants: module.constants,
+            },
+            module.path,
+            recordMap,
+            config,
+          ),
+        );
       }
     }
+    const outputFiles = javaSourceFiles.map((sourceFile) => ({
+      path: sourceFile.path,
+      code: sourceFile.generate(),
+    }));
     return { files: outputFiles };
   }
 }
 
+type JavaSourceFileTarget =
+  | Record
+  | {
+      kind: "methods";
+      methods: readonly Method[];
+    }
+  | {
+      kind: "constants";
+      constants: readonly Constant[];
+    };
+
 // Generates the code for one Java file.
 class JavaSourceFileGenerator {
   constructor(
-    private readonly declaration: Record | Method | Constant,
+    private readonly target: JavaSourceFileTarget,
     private readonly modulePath: string,
     private readonly recordMap: ReadonlyMap<RecordKey, RecordLocation>,
     config: Config,
@@ -87,10 +129,16 @@ class JavaSourceFileGenerator {
       ";\n\n",
     );
 
-    const { declaration } = this;
-    switch (declaration.kind) {
-      case "record":
-        this.writeClassForRecord(declaration, "top-level");
+    const { target } = this;
+    switch (target.kind) {
+      case "record": {
+        this.writeClassForRecord(target, "top-level");
+        break;
+      }
+      case "constants": {
+        this.writeClassForConstants(target.constants);
+        break;
+      }
     }
 
     return this.joinLinesAndFixFormatting();
@@ -437,7 +485,7 @@ class JavaSourceFileGenerator {
     record: Record,
     nested: "nested" | "top-level",
   ): void {
-    const { namer, recordMap, typeSpeller } = this;
+    const { recordMap, typeSpeller } = this;
     const recordLocation = recordMap.get(record.key)!;
     const className = this.namer.getClassName(recordLocation).name;
     const { fields } = record;
@@ -633,6 +681,8 @@ class JavaSourceFileGenerator {
         `private static final ${serializerType} _serializerImpl = (\n`,
         "land.soia.internal.EnumSerializer.Companion.create(\n",
         `"${getRecordId(recordLocation)}",\n`,
+        `(${className} it) -> it.kind().ordinal(),\n`,
+        "Kind.values().length,\n",
         "UNKNOWN,\n",
         `(${unrecognizedEnumType} it) -> new ${className}(Kind.UNKNOWN, it),\n`,
         `(${className} it) -> (${unrecognizedEnumType}) it.value\n`,
@@ -705,612 +755,54 @@ class JavaSourceFileGenerator {
   }
 
   get path(): string {
-    const { declaration, modulePath } = this;
+    const { target, modulePath } = this;
     let className: string;
-    switch (declaration.kind) {
+    switch (target.kind) {
       case "record": {
-        const record = this.recordMap.get(declaration.key)!;
+        const record = this.recordMap.get(target.key)!;
         className = this.namer.getClassName(record).name;
         break;
       }
-      default:
-        // TODO
-        className = declaration.name.text;
+      case "methods": {
+        className = "Methods";
         break;
+      }
+      case "constants": {
+        className = "Constants";
+        break;
+      }
     }
     return modulePath.replace(/\.soia$/, "") + `/${className}.java`;
   }
 
-  // private writeClassesForStruct(struct: RecordLocation): void {
-  //   const { namer, typeSpeller } = this;
-  //   const { recordMap } = typeSpeller;
-  //   const { fields } = struct.record;
-  //   const className = namer.getClassName(struct);
-  //   const { qualifiedName } = className;
-  //   this.push(`sealed interface ${className.name}_OrMutable {\n`);
-  //   for (const field of fields) {
-  //     const fieldName = namer.structFieldToKotlinName(field);
-  //     const allRecordsFrozen = field.isRecursive === "hard";
-  //     const type = typeSpeller.getKotlinType(
-  //       field.type!,
-  //       "maybe-mutable",
-  //       allRecordsFrozen,
-  //     );
-  //     this.push(`val ${fieldName}: ${type};\n`);
-  //   }
-  //   this.push(`\nfun toFrozen(): ${qualifiedName};\n`);
-  //   this.push(
-  //     "}\n\n", // class _OrMutable
-  //     '@kotlin.Suppress("UNUSED_PARAMETER")\n',
-  //     `class ${className.name} private constructor(\n`,
-  //   );
-  //   for (const field of fields) {
-  //     const fieldName = namer.structFieldToKotlinName(field);
-  //     const type = typeSpeller.getKotlinType(field.type!, "frozen");
-  //     if (field.isRecursive === "hard") {
-  //       this.push(`private val __${fieldName}: ${type}?,\n`);
-  //     } else {
-  //       this.push(`override val ${fieldName}: ${type},\n`);
-  //     }
-  //   }
-  //   this.push(
-  //     `private val _unrecognizedFields: _UnrecognizedFields<${qualifiedName}>? =\n`,
-  //     "null,\n",
-  //     `): ${qualifiedName}_OrMutable {\n`,
-  //   );
-  //   for (const field of fields) {
-  //     if (field.isRecursive === "hard") {
-  //       const fieldName = namer.structFieldToKotlinName(field);
-  //       const defaultExpr = this.getDefaultExpression(field.type!);
-  //       this.push(
-  //         `override val ${fieldName} get() = __${fieldName} ?: ${defaultExpr};\n`,
-  //       );
-  //     }
-  //   }
-  //   this.pushEol();
-  //   this.push(
-  //     "constructor(\n",
-  //     "_mustNameArguments: _MustNameArguments =\n_MustNameArguments,\n",
-  //   );
-  //   for (const field of fields) {
-  //     const fieldName = namer.structFieldToKotlinName(field);
-  //     const type = typeSpeller.getKotlinType(field.type!, "initializer");
-  //     this.push(`${fieldName}: ${type},\n`);
-  //   }
-  //   this.push(
-  //     `_unrecognizedFields: _UnrecognizedFields<${qualifiedName}>? =\n`,
-  //     "null,\n",
-  //     "): this(\n",
-  //   );
-  //   for (const field of fields) {
-  //     const fieldName = namer.structFieldToKotlinName(field);
-  //     this.push(this.toFrozenExpression(fieldName, field.type!), ",\n");
-  //   }
-  //   this.push(
-  //     "_unrecognizedFields,\n",
-  //     ") {}\n\n",
-  //     '@kotlin.Deprecated("Already frozen", kotlin.ReplaceWith("this"))\n',
-  //     "override fun toFrozen() = this;\n\n",
-  //     `fun toMutable() = Mutable(\n`,
-  //   );
-  //   for (const field of fields) {
-  //     const fieldName = namer.structFieldToKotlinName(field);
-  //     this.push(`${fieldName} = this.${fieldName},\n`);
-  //   }
-  //   this.push(");\n\n");
+  private writeClassForConstants(constants: readonly Constant[]): void {
+    this.push(
+      "public final class Constants {\n\n",
+      "private Constants() {}\n\n",
+    );
+    for (const constant of constants) {
+      this.writeConstant(constant);
+    }
+    this.push("}\n\n");
+  }
 
-  //   if (fields.length) {
-  //     this.push(
-  //       "fun copy(\n",
-  //       "_mustNameArguments: _MustNameArguments =\n_MustNameArguments,\n",
-  //     );
-  //     for (const field of fields) {
-  //       const fieldName = namer.structFieldToKotlinName(field);
-  //       const type = typeSpeller.getKotlinType(field.type!, "initializer");
-  //       this.push(`${fieldName}: ${type} =\nthis.${fieldName},\n`);
-  //     }
-  //     this.push(`) = ${qualifiedName}(\n`);
-  //     for (const field of fields) {
-  //       const fieldName = namer.structFieldToKotlinName(field);
-  //       this.push(this.toFrozenExpression(fieldName, field.type!), ",\n");
-  //     }
-  //     this.push(
-  //       "this._unrecognizedFields,\n",
-  //       ");\n\n",
-  //       '@kotlin.Deprecated("No point in creating an exact copy of an immutable object", kotlin.ReplaceWith("this"))\n',
-  //       "fun copy() = this;\n\n",
-  //     );
-  //   }
-  //   this.push(
-  //     "override fun equals(other: kotlin.Any?): kotlin.Boolean {\n",
-  //     `return this === other || (other is ${qualifiedName}`,
-  //     fields
-  //       .map(
-  //         (f) =>
-  //           ` && this.${namer.structFieldToKotlinName(f)} == other.${namer.structFieldToKotlinName(f)}`,
-  //       )
-  //       .join(""),
-  //     ");\n",
-  //     "}\n\n",
-  //     "override fun hashCode(): kotlin.Int {\n",
-  //     "return kotlin.collections.listOf<kotlin.Any?>(",
-  //     fields.map((f) => `this.${namer.structFieldToKotlinName(f)}`).join(", "),
-  //     ").hashCode();\n",
-  //     "}\n\n",
-  //     "override fun toString(): kotlin.String {\n",
-  //     "return land.soia.internal.toStringImpl(\n",
-  //     "this,\n",
-  //     `${qualifiedName}.serializerImpl,\n`,
-  //     ")\n",
-  //     "}\n\n",
-  //   );
-  //   this.push(
-  //     `class Mutable internal constructor(\n`,
-  //     "_mustNameArguments: _MustNameArguments =\n_MustNameArguments,\n",
-  //   );
-  //   for (const field of fields) {
-  //     const fieldName = namer.structFieldToKotlinName(field);
-  //     const allRecordsFrozen = !!field.isRecursive;
-  //     const type = typeSpeller.getKotlinType(
-  //       field.type!,
-  //       "maybe-mutable",
-  //       allRecordsFrozen,
-  //     );
-  //     const defaultExpr = this.getDefaultExpression(field.type!);
-  //     this.push(`override var ${fieldName}: ${type} =\n${defaultExpr},\n`);
-  //   }
-  //   this.push(
-  //     `internal var _unrecognizedFields: _UnrecognizedFields<${qualifiedName}>? =\n`,
-  //     "null,\n",
-  //     `): ${qualifiedName}_OrMutable {\n`,
-  //     `override fun toFrozen() = ${qualifiedName}(\n`,
-  //   );
-  //   for (const field of fields) {
-  //     const fieldName = namer.structFieldToKotlinName(field);
-  //     this.push(`${fieldName} = this.${fieldName},\n`);
-  //   }
-  //   this.push(
-  //     "_unrecognizedFields = this._unrecognizedFields,\n", //
-  //     `);\n\n`,
-  //   );
-  //   this.writeMutableGetters(fields);
-  //   this.push(
-  //     "}\n\n",
-  //     "companion object {\n",
-  //     "private val default =\n",
-  //     `${qualifiedName}(\n`,
-  //   );
-  //   for (const field of fields) {
-  //     this.push(
-  //       field.isRecursive === "hard"
-  //         ? "null"
-  //         : this.getDefaultExpression(field.type!),
-  //       ",\n",
-  //     );
-  //   }
-  //   this.push(
-  //     ");\n\n",
-  //     "fun partial() = default;\n\n",
-  //     "fun partial(\n",
-  //     "_mustNameArguments: _MustNameArguments =\n_MustNameArguments,\n",
-  //   );
-  //   for (const field of fields) {
-  //     const fieldName = namer.structFieldToKotlinName(field);
-  //     const type = typeSpeller.getKotlinType(field.type!, "initializer");
-  //     const defaultExpr = this.getDefaultExpression(field.type!);
-  //     this.push(`${fieldName}: ${type} =\n${defaultExpr},\n`);
-  //   }
-  //   this.push(`) = ${qualifiedName}(\n`);
-  //   for (const field of fields) {
-  //     const fieldName = namer.structFieldToKotlinName(field);
-  //     this.push(`${fieldName} = ${fieldName},\n`);
-  //   }
-  //   this.push(
-  //     "_unrecognizedFields = null,\n",
-  //     ");\n\n",
-  //     "private val serializerImpl = land.soia.internal.StructSerializer(\n",
-  //     `recordId = "${getRecordId(struct)}",\n`,
-  //     "defaultInstance = default,\n",
-  //     "newMutableFn = { it?.toMutable() ?: Mutable() },\n",
-  //     "toFrozenFn = { it.toFrozen() },\n",
-  //     "getUnrecognizedFields = { it._unrecognizedFields },\n",
-  //     "setUnrecognizedFields = { m, u -> m._unrecognizedFields = u },\n",
-  //     ");\n\n",
-  //     "val Serializer = land.soia.internal.makeSerializer(serializerImpl);\n\n",
-  //     "val TypeDescriptor get() = serializerImpl.typeDescriptor;\n\n",
-  //     "init {\n",
-  //   );
-  //   for (const field of fields) {
-  //     const fieldName = namer.structFieldToKotlinName(field);
-  //     this.push(
-  //       "serializerImpl.addField(\n",
-  //       `"${field.name.text}",\n`,
-  //       `"${fieldName}",\n`,
-  //       `${field.number},\n`,
-  //       `${typeSpeller.getSerializerExpression(field.type!)},\n`,
-  //       `{ it.${fieldName} },\n`,
-  //       `{ mut, v -> mut.${fieldName} = v },\n`,
-  //       ");\n",
-  //     );
-  //   }
-  //   for (const removedNumber of struct.record.removedNumbers) {
-  //     this.push(`serializerImpl.addRemovedNumber(${removedNumber});\n`);
-  //   }
-  //   this.push("serializerImpl.finalizeStruct();\n", "}\n", "}\n");
+  private writeConstant(constant: Constant): void {
+    const { typeSpeller } = this;
+    const javaType = typeSpeller.getJavaType(constant.type!, "frozen");
+    const name = constant.name.text;
 
-  //   // Write the classes for the records nested in `record`.
-  //   const nestedRecords = struct.record.nestedRecords.map(
-  //     (r) => recordMap.get(r.key)!,
-  //   );
-  //   this.writeClassesForRecords(nestedRecords);
-
-  //   this.push("}\n\n");
-  // }
-
-  // private writeMutableGetters(fields: readonly Field[]): void {
-  //   const { namer, typeSpeller } = this;
-  //   for (const field of fields) {
-  //     if (field.isRecursive) {
-  //       continue;
-  //     }
-  //     const type = field.type!;
-  //     const fieldName = namer.structFieldToKotlinName(field);
-  //     const mutableGetterName =
-  //       "mutable" +
-  //       convertCase(field.name.text, "lower_underscore", "UpperCamel");
-  //     const mutableType = typeSpeller.getKotlinType(field.type!, "mutable");
-  //     const accessor = `this.${fieldName}`;
-  //     let bodyLines: string[] = [];
-  //     if (type.kind === "array") {
-  //       bodyLines = [
-  //         "return when (value) {\n",
-  //         "is land.soia.internal.MutableList -> value;\n",
-  //         "else -> {\n",
-  //         "value = land.soia.internal.MutableList(value);\n",
-  //         `${accessor} = value;\n`,
-  //         "value;\n",
-  //         "}\n",
-  //         "}\n",
-  //       ];
-  //     } else if (type.kind === "record") {
-  //       const record = this.typeSpeller.recordMap.get(type.key)!;
-  //       if (record.record.recordType === "struct") {
-  //         const structQualifiedName = namer.getClassName(record).qualifiedName;
-  //         bodyLines = [
-  //           "return when (value) {\n",
-  //           `is ${structQualifiedName} -> {\n`,
-  //           "value = value.toMutable();\n",
-  //           `${accessor} = value;\n`,
-  //           "return value;\n",
-  //           "}\n",
-  //           `is ${structQualifiedName}.Mutable -> value;\n`,
-  //           "}\n",
-  //         ];
-  //       }
-  //     }
-  //     if (bodyLines.length) {
-  //       this.push(
-  //         `val ${mutableGetterName}: ${mutableType} get() {\n`,
-  //         `var value = ${accessor};\n`,
-  //       );
-  //       for (const line of bodyLines) {
-  //         this.push(line);
-  //       }
-  //       this.push("}\n\n");
-  //     }
-  //   }
-  // }
-
-  // private writeClassForEnum(record: RecordLocation): void {
-  //   const { namer, typeSpeller } = this;
-  //   const { recordMap } = typeSpeller;
-  //   const { fields } = record.record;
-  //   const constantFields = fields.filter((f) => !f.type);
-  //   const wrapperFields = fields.filter((f) => f.type);
-  //   const className = namer.getClassName(record);
-  //   const qualifiedName = className.qualifiedName;
-  //   this.push(
-  //     `sealed class ${className.name} private constructor() {\n`,
-  //     "enum class Kind {\n", //
-  //     "UNKNOWN,\n",
-  //   );
-  //   for (const field of constantFields) {
-  //     this.push(`${field.name.text}_CONST,\n`);
-  //   }
-  //   for (const field of wrapperFields) {
-  //     this.push(
-  //       convertCase(field.name.text, "lower_underscore", "UPPER_UNDERSCORE"),
-  //       "_WRAPPER,\n",
-  //     );
-  //   }
-  //   this.push(
-  //     "}\n\n",
-  //     'class Unknown @kotlin.Deprecated("For internal use", kotlin.ReplaceWith("',
-  //     qualifiedName,
-  //     '.UNKNOWN")) internal constructor(\n',
-  //     `internal val _unrecognized: _UnrecognizedEnum<${qualifiedName}>?,\n`,
-  //     `) : ${qualifiedName}() {\n`,
-  //     "override val kind get() = Kind.UNKNOWN;\n\n",
-  //     "override fun equals(other: kotlin.Any?): kotlin.Boolean {\n",
-  //     "return other is Unknown;\n",
-  //     "}\n\n",
-  //     "override fun hashCode(): kotlin.Int {\n",
-  //     "return -900601970;\n",
-  //     "}\n\n",
-  //     "}\n\n", // class Unknown
-  //   );
-  //   for (const constField of constantFields) {
-  //     const kindExpr = `Kind.${constField.name.text}_CONST`;
-  //     const constantName = toEnumConstantName(constField);
-  //     this.push(
-  //       `object ${constantName} : ${qualifiedName}() {\n`,
-  //       `override val kind get() = ${kindExpr};\n\n`,
-  //       "init {\n",
-  //       "_maybeFinalizeSerializer();\n",
-  //       "}\n",
-  //       `}\n\n`, // object
-  //     );
-  //   }
-  //   for (const wrapperField of wrapperFields) {
-  //     const valueType = wrapperField.type!;
-  //     const wrapperClassName =
-  //       convertCase(wrapperField.name.text, "lower_underscore", "UpperCamel") +
-  //       "Wrapper";
-  //     const initializerType = typeSpeller
-  //       .getKotlinType(valueType, "initializer")
-  //       .toString();
-  //     const frozenType = typeSpeller
-  //       .getKotlinType(valueType, "frozen")
-  //       .toString();
-  //     this.pushEol();
-  //     if (initializerType === frozenType) {
-  //       this.push(
-  //         `class ${wrapperClassName}(\n`,
-  //         `val value: ${initializerType},\n`,
-  //         `) : ${qualifiedName}() {\n`,
-  //       );
-  //     } else {
-  //       this.push(
-  //         `class ${wrapperClassName} private constructor (\n`,
-  //         `val value: ${frozenType},\n`,
-  //         `) : ${qualifiedName}() {\n`,
-  //         "constructor(\n",
-  //         `value: ${initializerType},\n`,
-  //         `): this(${this.toFrozenExpression("value", valueType)}) {}\n\n`,
-  //       );
-  //     }
-  //     const kindExpr =
-  //       "Kind." +
-  //       convertCase(
-  //         wrapperField.name.text,
-  //         "lower_underscore",
-  //         "UPPER_UNDERSCORE",
-  //       ) +
-  //       "_WRAPPER";
-  //     this.push(
-  //       `override val kind get() = ${kindExpr};\n\n`,
-  //       "override fun equals(other: kotlin.Any?): kotlin.Boolean {\n",
-  //       `return other is ${qualifiedName}.${wrapperClassName} && value == other.value;\n`,
-  //       "}\n\n",
-  //       "override fun hashCode(): kotlin.Int {\n",
-  //       "return this.value.hashCode() + ",
-  //       String(simpleHash(wrapperField.name.text) | 0),
-  //       ";\n",
-  //       "}\n\n",
-  //       "}\n\n", // class
-  //     );
-  //   }
-
-  //   this.push(
-  //     "abstract val kind: Kind;\n\n",
-  //     "override fun toString(): kotlin.String {\n",
-  //     "return land.soia.internal.toStringImpl(\n",
-  //     "this,\n",
-  //     `${qualifiedName}._serializerImpl,\n`,
-  //     ")\n",
-  //     "}\n\n",
-  //     "companion object {\n",
-  //     'val UNKNOWN = @kotlin.Suppress("DEPRECATION") Unknown(null);\n\n',
-  //   );
-  //   for (const wrapperField of wrapperFields) {
-  //     const type = wrapperField.type!;
-  //     if (type.kind !== "record") {
-  //       continue;
-  //     }
-  //     const structLocation = typeSpeller.recordMap.get(type.key)!;
-  //     const struct = structLocation.record;
-  //     if (struct.recordType !== "struct") {
-  //       continue;
-  //     }
-  //     const structClassName = namer.getClassName(structLocation);
-  //     const createFunName =
-  //       "create" +
-  //       convertCase(wrapperField.name.text, "lower_underscore", "UpperCamel");
-  //     const wrapperClassName =
-  //       convertCase(wrapperField.name.text, "lower_underscore", "UpperCamel") +
-  //       "Wrapper";
-  //     this.push(
-  //       '@kotlin.Suppress("UNUSED_PARAMETER")\n',
-  //       `fun ${createFunName}(\n`,
-  //       "_mustNameArguments: _MustNameArguments =\n_MustNameArguments,\n",
-  //     );
-  //     for (const field of struct.fields) {
-  //       const fieldName = namer.structFieldToKotlinName(field);
-  //       const type = typeSpeller.getKotlinType(field.type!, "initializer");
-  //       this.push(`${fieldName}: ${type},\n`);
-  //     }
-  //     this.push(
-  //       `) = ${wrapperClassName}(\n`,
-  //       `${structClassName.qualifiedName}(\n`,
-  //     );
-  //     for (const field of struct.fields) {
-  //       const fieldName = namer.structFieldToKotlinName(field);
-  //       this.push(`${fieldName} = ${fieldName},\n`);
-  //     }
-  //     this.push(")\n", ");\n\n");
-  //   }
-  //   this.push(
-  //     "private val _serializerImpl =\n",
-  //     `land.soia.internal.EnumSerializer.create<${qualifiedName}, Unknown>(\n`,
-  //     `recordId = "${getRecordId(record)}",\n`,
-  //     "unknownInstance = UNKNOWN,\n",
-  //     'wrapUnrecognized = { @kotlin.Suppress("DEPRECATION") Unknown(it) },\n',
-  //     "getUnrecognized = { it._unrecognized },\n)",
-  //     ";\n\n",
-  //     "val Serializer = land.soia.internal.makeSerializer(_serializerImpl);\n\n",
-  //     "val TypeDescriptor get() = _serializerImpl.typeDescriptor;\n\n",
-  //     "init {\n",
-  //   );
-  //   for (const constField of constantFields) {
-  //     this.push(toEnumConstantName(constField), ";\n");
-  //   }
-  //   this.push("_maybeFinalizeSerializer();\n");
-  //   this.push(
-  //     "}\n\n", // init
-  //     `private var _finalizationCounter = 0;\n\n`,
-  //     "private fun _maybeFinalizeSerializer() {\n",
-  //     "_finalizationCounter += 1;\n",
-  //     `if (_finalizationCounter == ${constantFields.length + 1}) {\n`,
-  //   );
-  //   for (const constField of constantFields) {
-  //     this.push(
-  //       "_serializerImpl.addConstantField(\n",
-  //       `${constField.number},\n`,
-  //       `"${constField.name.text}",\n`,
-  //       `${toEnumConstantName(constField)},\n`,
-  //       ");\n",
-  //     );
-  //   }
-  //   for (const wrapperField of wrapperFields) {
-  //     const serializerExpression = typeSpeller.getSerializerExpression(
-  //       wrapperField.type!,
-  //     );
-  //     const wrapperClassName =
-  //       convertCase(wrapperField.name.text, "lower_underscore", "UpperCamel") +
-  //       "Wrapper";
-  //     this.push(
-  //       "_serializerImpl.addWrapperField(\n",
-  //       `${wrapperField.number},\n`,
-  //       `"${wrapperField.name.text}",\n`,
-  //       `${wrapperClassName}::class.java,\n`,
-  //       `${serializerExpression},\n`,
-  //       `{ ${wrapperClassName}(it) },\n`,
-  //       ") { it.value };\n",
-  //     );
-  //   }
-  //   for (const removedNumber of record.record.removedNumbers) {
-  //     this.push(`_serializerImpl.addRemovedNumber(${removedNumber});\n`);
-  //   }
-  //   this.push(
-  //     "_serializerImpl.finalizeEnum();\n",
-  //     "}\n",
-  //     "}\n", // maybeFinalizeSerializer
-  //     "}\n\n", // companion object
-  //   );
-
-  //   // Write the classes for the records nested in `record`.
-  //   const nestedRecords = record.record.nestedRecords.map(
-  //     (r) => recordMap.get(r.key)!,
-  //   );
-  //   this.writeClassesForRecords(nestedRecords);
-  //   this.push("}\n\n");
-  // }
-
-  // private writeMethod(method: Method): void {
-  //   const { typeSpeller } = this;
-  //   const methodName = method.name.text;
-  //   const requestType = typeSpeller.getKotlinType(
-  //     method.requestType!,
-  //     "frozen",
-  //   );
-  //   const requestSerializerExpr = typeSpeller.getSerializerExpression(
-  //     method.requestType!,
-  //   );
-  //   const responseType = typeSpeller.getKotlinType(
-  //     method.responseType!,
-  //     "frozen",
-  //   );
-  //   const responseSerializerExpr = typeSpeller.getSerializerExpression(
-  //     method.responseType!,
-  //   );
-  //   this.push(
-  //     `val ${methodName}: land.soia.Method<\n${requestType},\n${responseType},\n> by kotlin.lazy {\n`,
-  //     "land.soia.Method(\n",
-  //     `"${methodName}",\n`,
-  //     `${method.number},\n`,
-  //     requestSerializerExpr + ",\n",
-  //     responseSerializerExpr + ",\n",
-  //     ")\n",
-  //     "}\n\n",
-  //   );
-  // }
-
-  // private writeConstant(constant: Constant): void {
-  //   const { typeSpeller } = this;
-  //   const name = constant.name.text;
-  //   const type = constant.type!;
-  //   const kotlinType = typeSpeller.getKotlinType(constant.type!, "frozen");
-  //   const tryGetKotlinConstLiteral: () => string | undefined = () => {
-  //     if (type.kind !== "primitive") {
-  //       return undefined;
-  //     }
-  //     const { valueAsDenseJson } = constant;
-  //     switch (type.primitive) {
-  //       case "bool":
-  //         return JSON.stringify(!!valueAsDenseJson);
-  //       case "int32":
-  //       case "string":
-  //         return JSON.stringify(valueAsDenseJson);
-  //       case "int64":
-  //         return `${valueAsDenseJson}L`;
-  //       case "uint64":
-  //         return `${valueAsDenseJson}UL`;
-  //       case "float32": {
-  //         if (valueAsDenseJson === "NaN") {
-  //           return "Float.NaN";
-  //         } else if (valueAsDenseJson === "Infinity") {
-  //           return "Float.POSITIVE_INFINITY";
-  //         } else if (valueAsDenseJson === "-Infinity") {
-  //           return "Float.NEGATIVE_INFINITY";
-  //         } else {
-  //           return JSON.stringify(valueAsDenseJson) + "F";
-  //         }
-  //       }
-  //       case "float64": {
-  //         if (valueAsDenseJson === "NaN") {
-  //           return "Double.NaN";
-  //         } else if (valueAsDenseJson === "Infinity") {
-  //           return "Double.POSITIVE_INFINITY";
-  //         } else if (valueAsDenseJson === "-Infinity") {
-  //           return "Double.NEGATIVE_INFINITY";
-  //         } else {
-  //           return JSON.stringify(valueAsDenseJson);
-  //         }
-  //       }
-  //       default:
-  //         return undefined;
-  //     }
-  //   };
-  //   const kotlinConstLiteral = tryGetKotlinConstLiteral();
-  //   if (kotlinConstLiteral !== undefined) {
-  //     this.push(
-  //       `const val ${name}: ${kotlinType} = ${kotlinConstLiteral};\n\n`,
-  //     );
-  //   } else {
-  //     const serializerExpression = typeSpeller.getSerializerExpression(
-  //       constant.type!,
-  //     );
-  //     const jsonStringLiteral = JSON.stringify(
-  //       JSON.stringify(constant.valueAsDenseJson),
-  //     );
-  //     this.push(
-  //       `val ${name}: ${kotlinType} by kotlin.lazy {\n`,
-  //       serializerExpression,
-  //       `.fromJsonCode(${jsonStringLiteral})\n`,
-  //       "}\n\n",
-  //     );
-  //   }
-  // }
+    const serializerExpression = typeSpeller.getSerializerExpression(
+      constant.type!,
+    );
+    const jsonStringLiteral = JSON.stringify(
+      JSON.stringify(constant.valueAsDenseJson),
+    );
+    this.push(
+      `public static final ${javaType} ${name} = (\n`,
+      `${serializerExpression}.fromJsonCode(${jsonStringLiteral})\n`,
+      ");\n\n",
+    );
+  }
 
   private getDefaultExpression(type: ResolvedType): string {
     switch (type.kind) {
@@ -1320,8 +812,9 @@ class JavaSourceFileGenerator {
             return "false";
           case "int32":
           case "int64":
-          case "uint64":
             return "0";
+          case "uint64":
+            return "kotlin.ULong.Companion.ZERO";
           case "float32":
             return "0.0f";
           case "float64":
@@ -1377,10 +870,13 @@ class JavaSourceFileGenerator {
           case "bool":
           case "int32":
           case "int64":
-          case "uint64":
           case "float32":
           case "float64":
             return inputExpr;
+          case "uint64":
+            return nullability === "can-be-null"
+              ? `java.util.Objects.requireNonNull(${inputExpr})`
+              : inputExpr;
           case "timestamp":
           case "string":
           case "bytes":
