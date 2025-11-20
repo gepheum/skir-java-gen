@@ -205,7 +205,7 @@ class JavaSourceFileGenerator {
     this.push(
       "@java.lang.Override\n",
       "public int hashCode() {\n",
-      `return java.util.Arrays.hashCode(_equalsProxy());\n`,
+      "return java.util.Arrays.hashCode(_equalsProxy());\n",
       "}\n\n",
     );
 
@@ -368,9 +368,9 @@ class JavaSourceFileGenerator {
 
     // _serializerImpl
     {
-      const type = `land.soia.internal.StructSerializer<${className}, ${className}.Builder>`;
+      const serializerType = `land.soia.internal.StructSerializer<${className}, ${className}.Builder>`;
       this.push(
-        `private static final ${type} _serializerImpl = (\n`,
+        `private static final ${serializerType} _serializerImpl = (\n`,
         "new land.soia.internal.StructSerializer<>(\n",
         `"${getRecordId(recordLocation)}",\n`,
         "DEFAULT,\n",
@@ -431,7 +431,6 @@ class JavaSourceFileGenerator {
     // Nested classes
     this.writeClassesForNestedRecords(record);
     this.push("}\n\n");
-    // TODO
   }
 
   private writeClassForEnum(
@@ -442,24 +441,265 @@ class JavaSourceFileGenerator {
     const recordLocation = recordMap.get(record.key)!;
     const className = this.namer.getClassName(recordLocation).name;
     const { fields } = record;
+    const constantFields = fields.filter((f) => !f.type);
+    const wrapperFields = fields.filter((f) => f.type);
     this.push(
       "public ",
       nested === "nested" ? "static " : "",
       `final class ${className} {\n`,
     );
-    this.push("public enum Kind {\n", "UNKNOWN\n", "}\n\n");
+    // Kind enum
+    this.push("public enum Kind {\n", "UNKNOWN,\n");
+    for (const field of constantFields) {
+      this.push(field.name.text, "_CONST,\n");
+    }
+    for (const field of wrapperFields) {
+      this.push(
+        convertCase(field.name.text, "lower_underscore", "UPPER_UNDERSCORE"),
+        "_WRAPPER,\n",
+      );
+    }
+    this.push("}\n\n");
+
+    // Constants
     this.push(
-      `public static final ${className} UNKNOWN = new ${className}();\n`,
-      "public Kind kind() {\n",
-      "return Kind.UNKNOWN;\n",
+      `public static final ${className} UNKNOWN = new ${className}(Kind.UNKNOWN, null);\n`,
+    );
+    for (const field of constantFields) {
+      const name = field.name.text;
+      this.push(
+        `public static final ${className} ${name} = new ${className}(Kind.${name}_CONST, null);\n`,
+      );
+    }
+    this.pushEol();
+
+    // WrapX methods
+    for (const field of wrapperFields) {
+      const upperCamelName = convertCase(
+        field.name.text,
+        "lower_underscore",
+        "UpperCamel",
+      );
+      const upperUnderscoreName = convertCase(
+        field.name.text,
+        "lower_underscore",
+        "UPPER_UNDERSCORE",
+      );
+      const type = field.type!;
+      const initializerType = typeSpeller.getJavaType(type, "initializer");
+      const frozenType = typeSpeller.getJavaType(type, "frozen");
+      const toFrozenExpr = this.toFrozenExpression(
+        "value",
+        type,
+        "can-be-null",
+        "_e",
+      );
+      this.push(
+        `public static ${className} wrap${upperCamelName}(${initializerType} value) {\n`,
+        `final ${frozenType} v = ${toFrozenExpr};\n`,
+        `return new ${className}(Kind.${upperUnderscoreName}_WRAPPER, v);\n`,
+        "}\n\n",
+      );
+    }
+
+    // Declare fields
+    this.push(
+      "private final Kind kind;\n",
+      "private final java.lang.Object value;\n\n",
+    );
+
+    // Constructor
+    this.push(
+      `private ${className}(Kind kind, java.lang.Object value) {\n`,
+      "this.kind = kind;\n",
+      "this.value = value;\n",
       "}\n\n",
     );
+
+    // kind()
+    this.push("public Kind kind() {\n", "return kind;\n", "}\n\n");
+
+    // asX() methods
+    for (const field of wrapperFields) {
+      const type = typeSpeller.getJavaType(field.type!, "frozen");
+      const upperCamelName = convertCase(
+        field.name.text,
+        "lower_underscore",
+        "UpperCamel",
+      );
+      const upperUnderscoreName = convertCase(
+        field.name.text,
+        "lower_underscore",
+        "UPPER_UNDERSCORE",
+      );
+      this.push(
+        `public ${type} as${upperCamelName}() {\n`,
+        `if (kind != Kind.${upperUnderscoreName}_WRAPPER) {\n`,
+        `throw new java.lang.IllegalStateException("kind=" + kind.name());\n`,
+        "}\n",
+        `return (${type}) value;\n`,
+        "}\n\n",
+      );
+    }
+
+    // Visitor
+    this.push("public interface Visitor<R> {\n", "R onUnknown();\n");
+    for (const field of constantFields) {
+      const upperCamelName = convertCase(
+        field.name.text,
+        "UPPER_UNDERSCORE",
+        "UpperCamel",
+      );
+      this.push(`R on${upperCamelName}();\n`);
+    }
+    for (const field of wrapperFields) {
+      const upperCamelName = convertCase(
+        field.name.text,
+        "lower_underscore",
+        "UpperCamel",
+      );
+      const type = typeSpeller.getJavaType(field.type!, "frozen");
+      this.push(`R on${upperCamelName}(${type} value);\n`);
+    }
+    this.push("}\n\n");
+
+    // accept()
+    this.push(
+      "public <R> R accept(Visitor<R> visitor) {\n",
+      "return switch (kind) {\n",
+    );
+    for (const field of constantFields) {
+      const upperUnderscoreName = field.name.text;
+      const upperCamelName = convertCase(
+        field.name.text,
+        "UPPER_UNDERSCORE",
+        "UpperCamel",
+      );
+      this.push(
+        `case ${upperUnderscoreName}_CONST -> visitor.on${upperCamelName}();\n`,
+      );
+    }
+    for (const field of wrapperFields) {
+      const upperUnderscoreName = convertCase(
+        field.name.text,
+        "lower_underscore",
+        "UPPER_UNDERSCORE",
+      );
+      const upperCamelName = convertCase(
+        field.name.text,
+        "lower_underscore",
+        "UpperCamel",
+      );
+      const type = typeSpeller.getJavaType(field.type!, "frozen");
+      this.push(
+        `case ${upperUnderscoreName}_WRAPPER -> visitor.on${upperCamelName}((${type}) value);\n`,
+      );
+    }
+    this.push("default -> visitor.onUnknown();\n", "};\n", "}\n\n");
+
+    // equals()
+    this.push(
+      "@java.lang.Override\n",
+      "public boolean equals(Object other) {\n",
+      `if (!(other instanceof ${className})) return false;\n`,
+      `final ${className} otherEnum = (${className}) other;\n`,
+      "if (kind == Kind.UNKNOWN) return otherEnum.kind == Kind.UNKNOWN;\n",
+      "return kind == otherEnum.kind && java.util.Objects.equals(value, otherEnum.value);\n",
+      "}\n\n",
+    );
+
+    // hashCode()
+    this.push(
+      "@java.lang.Override\n",
+      "public int hashCode() {\n",
+      "final Object v = kind == Kind.UNKNOWN ? null : value;\n",
+      "return 31 * java.util.Objects.hashCode(v) + kind.ordinal();\n",
+      "}\n\n",
+    );
+
+    // toString()
+    this.push(
+      "@java.lang.Override\n",
+      "public java.lang.String toString() {\n",
+      `return serializer().toJsonCode(this, land.soia.JsonFlavor.READABLE);\n`,
+      "}\n\n",
+    );
+
+    // _serializerImpl
+    {
+      const serializerType = `land.soia.internal.EnumSerializer<${className}>`;
+      const unrecognizedEnumType = `land.soia.internal.UnrecognizedEnum<${className}>`;
+      this.push(
+        `private static final ${serializerType} _serializerImpl = (\n`,
+        "land.soia.internal.EnumSerializer.Companion.create(\n",
+        `"${getRecordId(recordLocation)}",\n`,
+        "UNKNOWN,\n",
+        `(${unrecognizedEnumType} it) -> new ${className}(Kind.UNKNOWN, it),\n`,
+        `(${className} it) -> (${unrecognizedEnumType}) it.value\n`,
+        ")\n",
+        ");\n\n",
+      );
+    }
+    // _serializer
+    this.push(
+      `private static final land.soia.Serializer<${className}> _serializer = (\n`,
+      "land.soia.internal.SerializersKt.makeSerializer(_serializerImpl)\n",
+      ");\n\n",
+    );
+    // serializer()
+    this.push(
+      `public static land.soia.Serializer<${className}> serializer() {\n`,
+      "return _serializer;\n",
+      "};\n\n",
+    );
+    // typeDescriptor()
+    this.push(
+      `public static land.soia.reflection.StructDescriptor.Reflective<${className}, ${className}.Builder> typeDescriptor() {\n`,
+      "return _serializerImpl.getTypeDescriptor();\n",
+      "};\n\n",
+    );
+
+    // Finalize serializer
+    this.push("static {\n");
+    for (const constField of constantFields) {
+      this.push(
+        "_serializerImpl.addConstantField(\n",
+        `${constField.number},\n`,
+        `"${constField.name.text}",\n`,
+        '"",\n',
+        ");\n",
+      );
+    }
+    for (const wrapperField of wrapperFields) {
+      const serializerExpression = typeSpeller.getSerializerExpression(
+        wrapperField.type!,
+      );
+      const wrapperClassName =
+        convertCase(wrapperField.name.text, "lower_underscore", "UpperCamel") +
+        "Wrapper";
+      this.push(
+        "_serializerImpl.addWrapperField(\n",
+        `${wrapperField.number},\n`,
+        `"${wrapperField.name.text}",\n`,
+        `${wrapperClassName}::class.java,\n`,
+        `${serializerExpression},\n`,
+        `{ ${wrapperClassName}(it) },\n`,
+        ") { it.value };\n",
+      );
+    }
+    for (const removedNumber of record.removedNumbers) {
+      this.push(`_serializerImpl.addRemovedNumber(${removedNumber});\n`);
+    }
+    this.push("_serializerImpl.finalizeEnum();\n", "}\n\n");
+
     // serializer()
     this.push(
       `public static land.soia.Serializer<${className}> serializer() {\n`,
       `return (land.soia.Serializer<${className}>) null;\n`,
       "};\n\n",
     );
+
+    // Nested classes
     this.writeClassesForNestedRecords(record);
     this.push("}\n\n");
   }
