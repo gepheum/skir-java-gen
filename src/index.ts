@@ -654,50 +654,44 @@ class JavaSourceFileGenerator {
     );
     // typeDescriptor()
     this.push(
-      `public static land.soia.reflection.StructDescriptor.Reflective<${className}, ${className}.Builder> typeDescriptor() {\n`,
+      `public static land.soia.reflection.EnumDescriptor.Reflective<${className}> typeDescriptor() {\n`,
       "return _serializerImpl.getTypeDescriptor();\n",
       "};\n\n",
     );
 
     // Finalize serializer
     this.push("static {\n");
-    for (const constField of constantFields) {
-      this.push(
-        "_serializerImpl.addConstantField(\n",
-        `${constField.number},\n`,
-        `"${constField.name.text}",\n`,
-        '"",\n',
-        ");\n",
-      );
-    }
-    for (const wrapperField of wrapperFields) {
-      const serializerExpression = typeSpeller.getSerializerExpression(
-        wrapperField.type!,
-      );
-      const wrapperClassName =
-        convertCase(wrapperField.name.text, "lower_underscore", "UpperCamel") +
-        "Wrapper";
-      this.push(
-        "_serializerImpl.addWrapperField(\n",
-        `${wrapperField.number},\n`,
-        `"${wrapperField.name.text}",\n`,
-        `${wrapperClassName}::class.java,\n`,
-        `${serializerExpression},\n`,
-        `{ ${wrapperClassName}(it) },\n`,
-        ") { it.value };\n",
-      );
-    }
+    // for (const constField of constantFields) {
+    //   this.push(
+    //     "_serializerImpl.addConstantField(\n",
+    //     `${constField.number},\n`,
+    //     `"${constField.name.text}",\n`,
+    //     '""\n',
+    //     ");\n",
+    //   );
+    // }
+    // TODO: put back
+    // for (const wrapperField of wrapperFields) {
+    //   const serializerExpression = typeSpeller.getSerializerExpression(
+    //     wrapperField.type!,
+    //   );
+    //   const wrapperClassName =
+    //     convertCase(wrapperField.name.text, "lower_underscore", "UpperCamel") +
+    //     "Wrapper";
+    //   this.push(
+    //     "_serializerImpl.addWrapperField(\n",
+    //     `${wrapperField.number},\n`,
+    //     `"${wrapperField.name.text}",\n`,
+    //     `${wrapperClassName}::class.java,\n`,
+    //     `${serializerExpression},\n`,
+    //     `{ ${wrapperClassName}(it) },\n`,
+    //     ") { it.value };\n",
+    //   );
+    // }
     for (const removedNumber of record.removedNumbers) {
       this.push(`_serializerImpl.addRemovedNumber(${removedNumber});\n`);
     }
     this.push("_serializerImpl.finalizeEnum();\n", "}\n\n");
-
-    // serializer()
-    this.push(
-      `public static land.soia.Serializer<${className}> serializer() {\n`,
-      `return (land.soia.Serializer<${className}>) null;\n`,
-      "};\n\n",
-    );
 
     // Nested classes
     this.writeClassesForNestedRecords(record);
