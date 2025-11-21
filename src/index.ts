@@ -1,6 +1,3 @@
-// TODO: Java formatting?
-// TODO: pre-commit
-
 import {
   type CodeGenerator,
   type Constant,
