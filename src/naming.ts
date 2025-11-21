@@ -1,5 +1,15 @@
 import { Field, RecordLocation, convertCase } from "soiac";
 
+export interface ClassName {
+  /** The name right after the 'class' keyword.. */
+  name: string;
+  /**
+   * Fully qualified class name.
+   * Examples: 'soiagen.Foo', 'soiagen.Foo.Bar'
+   */
+  qualifiedName: string;
+}
+
 export class Namer {
   private readonly genPackageFirstName: string;
 
@@ -23,7 +33,7 @@ export class Namer {
     return nameConflict ? lowerCamel + "_" : lowerCamel;
   }
 
-  /** Returns the name of the frozen Kotlin class for the given record. */
+  /** Returns the name of the frozen Java class for the given record. */
   getClassName(record: RecordLocation): ClassName {
     const { recordAncestors } = record;
     const parts: string[] = [];
@@ -59,68 +69,84 @@ export class Namer {
 // TODO: update
 const JAVA_HARD_KEYWORDS: ReadonlySet<string> = new Set([
   "abstract",
-  "annotation",
-  "as",
+  "assert",
+  "boolean",
   "break",
+  "byte",
+  "case",
   "catch",
+  "char",
   "class",
   "const",
   "continue",
-  "crossinline",
-  "data",
+  "default",
+  "do",
+  "double",
   "else",
   "enum",
-  "external",
+  "exports",
+  "extends",
+  "false",
   "final",
   "finally",
+  "float",
   "for",
-  "fun",
+  "goto",
   "if",
+  "implements",
   "import",
-  "in",
-  "inline",
+  "instanceof",
+  "int",
   "interface",
-  "internal",
-  "is",
-  "lateinit",
-  "noinline",
-  "object",
-  "open",
-  "operator",
-  "override",
+  "long",
+  "module",
+  "native",
+  "new",
+  "null",
   "package",
   "private",
   "protected",
   "public",
-  "reified",
   "return",
-  "sealed",
+  "short",
+  "static",
+  "strictfp",
   "super",
-  "suspend",
+  "switch",
+  "synchronized",
   "this",
   "throw",
+  "throws",
+  "transient",
+  "true",
   "try",
-  "typealias",
-  "val",
-  "var",
-  "when",
+  "void",
+  "volatile",
   "while",
+  "with",
+  "yield",
 ]);
 
 const TOP_LEVEL_PACKAGE_NAMES: ReadonlySet<string> = new Set<string>([
   "java",
   "kotlin",
+  "land",
   "okio",
 ]);
 
 // TODO: update
 const JAVA_OBJECT_SYMBOLS: ReadonlySet<string> = new Set([
+  "clone",
   "equals",
+  "finalize",
+  "getClass",
   "hashCode",
+  "notify",
+  "notifyAll",
   "toString",
+  "wait",
 ]);
 
-// TODO: update
 const GENERATED_STRUCT_SYMBOLS: ReadonlySet<string> = new Set([
   "builder",
   "partialBuilder",
@@ -132,14 +158,4 @@ export function toEnumConstantName(field: Field): string {
   return soiaName === "SERIALIZER" || soiaName === "TYPE_DESCRIPTOR"
     ? `${soiaName}_`
     : soiaName;
-}
-
-export interface ClassName {
-  /** The name right after the 'class' keyword.. */
-  name: string;
-  /**
-   * Fully qualified class name.
-   * Examples: 'soiagen.Foo', 'soiagen.Foo.Bar'
-   */
-  qualifiedName: string;
 }

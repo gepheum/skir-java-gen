@@ -1,5 +1,4 @@
-// TODO: upgrade client lib, update kotlin gen, remove typeDescriptor method...
-// TODO: fix name conflicts in 'naming.ts'
+// TODO: fix ULong
 // TODO: golden tests
 
 import {
