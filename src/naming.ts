@@ -1,7 +1,7 @@
 import { Field, RecordLocation, convertCase } from "soiac";
 
 export interface ClassName {
-  /** The name right after the 'class' keyword.. */
+  /** The name right after the 'class' keyword. */
   name: string;
   /**
    * Fully qualified class name.
@@ -134,7 +134,6 @@ const TOP_LEVEL_PACKAGE_NAMES: ReadonlySet<string> = new Set<string>([
   "okio",
 ]);
 
-// TODO: update
 const JAVA_OBJECT_SYMBOLS: ReadonlySet<string> = new Set([
   "clone",
   "equals",
