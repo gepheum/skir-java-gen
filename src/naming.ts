@@ -129,7 +129,9 @@ const GENERATED_STRUCT_SYMBOLS: ReadonlySet<string> = new Set([
 
 export function toEnumConstantName(field: Field): string {
   const soiaName = field.name.text;
-  return soiaName === "SERIALIZER" ? `${soiaName}_` : soiaName;
+  return soiaName === "SERIALIZER" || soiaName === "TYPE_DESCRIPTOR"
+    ? `${soiaName}_`
+    : soiaName;
 }
 
 export interface ClassName {

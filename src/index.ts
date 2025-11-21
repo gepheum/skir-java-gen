@@ -120,7 +120,7 @@ class JavaSourceFileGenerator {
 
       // To install the Soia client library, add:
       //   implementation("land.soia:soia-kotlin-client:latest.release")
-      // to your build.gradle.kts file
+      // to your build.gradle file
 
       `,
       `package ${this.packagePrefix}soiagen.`,
@@ -439,12 +439,23 @@ class JavaSourceFileGenerator {
         ");\n\n",
       );
     }
-    // _serializer
+
+    // SERIALIZER
     this.push(
       `public static final land.soia.Serializer<${className}> SERIALIZER = (\n`,
       "land.soia.internal.SerializersKt.makeSerializer(_serializerImpl)\n",
       ");\n\n",
     );
+
+    // TYPE_DESCRIPTOR
+    {
+      const typeDescriptorType = `land.soia.reflection.StructDescriptor.Reflective<${className}, ${className}.Builder>`;
+      this.push(
+        `public static final ${typeDescriptorType} TYPE_DESCRIPTOR = (\n`,
+        "_serializerImpl\n",
+        ");\n\n",
+      );
+    }
 
     // Finalize serializer
     this.push("static {\n");
@@ -685,12 +696,23 @@ class JavaSourceFileGenerator {
         ");\n\n",
       );
     }
-    // _serializer
+
+    // SERIALIZER
     this.push(
       `public static final land.soia.Serializer<${className}> SERIALIZER = (\n`,
       "land.soia.internal.SerializersKt.makeSerializer(_serializerImpl)\n",
       ");\n\n",
     );
+
+    // TYPE_DESCRIPTOR
+    {
+      const typeDescriptorType = `land.soia.reflection.EnumDescriptor.Reflective<${className}>`;
+      this.push(
+        `public static final ${typeDescriptorType} TYPE_DESCRIPTOR = (\n`,
+        "_serializerImpl\n",
+        ");\n\n",
+      );
+    }
 
     // Finalize serializer
     this.push("static {\n");
