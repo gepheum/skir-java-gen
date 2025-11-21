@@ -1,5 +1,5 @@
-// TODO: fix ULong
-// TODO: golden tests
+// TODO: Java formatting?
+// TODO: pre-commit
 
 import {
   type CodeGenerator,
@@ -467,7 +467,7 @@ class JavaSourceFileGenerator {
         '"",\n',
         `${field.number},\n`,
         `${typeSpeller.getSerializerExpression(field.type!)},\n`,
-        `(it) -> it.${javadName},\n`,
+        `(it) -> it.${javadName}(),\n`,
         "(builder, v) -> {\n",
         `builder.${javadName} = v;\n`,
         "return null;\n",
@@ -814,11 +814,7 @@ class JavaSourceFileGenerator {
     );
 
     const soiaName = method.name.text;
-    const javaName = convertCase(
-      soiaName,
-      "lower_underscore",
-      "UPPER_UNDERSCORE",
-    );
+    const javaName = convertCase(soiaName, "UpperCamel", "UPPER_UNDERSCORE");
 
     const methodType = `land.soia.service.Method<${requestType}, ${responseType}>`;
     this.push(
@@ -870,9 +866,8 @@ class JavaSourceFileGenerator {
             return "false";
           case "int32":
           case "int64":
-            return "0";
           case "uint64":
-            return "kotlin.ULong.Companion.ZERO";
+            return "0";
           case "float32":
             return "0.0f";
           case "float64":
@@ -928,13 +923,10 @@ class JavaSourceFileGenerator {
           case "bool":
           case "int32":
           case "int64":
+          case "uint64":
           case "float32":
           case "float64":
             return inputExpr;
-          case "uint64":
-            return nullability === "can-be-null"
-              ? `java.util.Objects.requireNonNull(${inputExpr})`
-              : inputExpr;
           case "timestamp":
           case "string":
           case "bytes":

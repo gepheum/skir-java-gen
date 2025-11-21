@@ -12,7 +12,6 @@ import land.soia.Serializer;
 import land.soia.Serializers;
 import land.soia.UnrecognizedFieldsPolicy;
 import land.soia.reflection.TypeDescriptor;
-import land.soia.reflection.TypeDescriptorKt;
 import okio.ByteString;
 import soiagen.goldens.Assertion;
 import soiagen.goldens.BytesExpression;
@@ -21,6 +20,8 @@ import soiagen.goldens.Constants;
 import soiagen.goldens.KeyedArrays;
 import soiagen.goldens.MyEnum;
 import soiagen.goldens.Point;
+import soiagen.goldens.RecEnum;
+import soiagen.goldens.RecStruct;
 import soiagen.goldens.StringExpression;
 import soiagen.goldens.TypedValue;
 import soiagen.goldens.UnitTest;
@@ -317,7 +318,7 @@ public class GoldensTest {
 
         Optional<String> expectedTypeDescriptor = input.expectedTypeDescriptor();
         if (expectedTypeDescriptor.isPresent()) {
-            String actual = TypeDescriptorKt.asJsonCode(typedValue.serializer.typeDescriptor());
+            String actual = typedValue.serializer.typeDescriptor().asJsonCode();
             verifyAssertion(
                 Assertion.wrapStringEqual(
                     Assertion.StringEqual.builder()
@@ -330,7 +331,17 @@ public class GoldensTest {
                 Assertion.wrapStringEqual(
                     Assertion.StringEqual.builder()
                         .setActual(StringExpression.wrapLiteral(
-                            TypeDescriptorKt.asJsonCode(TypeDescriptor.Companion.parseFromJsonCode(actual))
+                            TypeDescriptor.Companion.parseFromJsonCode(actual).asJsonCode()
+                        ))
+                        .setExpected(StringExpression.wrapLiteral(expectedTypeDescriptor.get()))
+                        .build()
+                )
+            );
+            verifyAssertion(
+                Assertion.wrapStringEqual(
+                    Assertion.StringEqual.builder()
+                        .setActual(StringExpression.wrapLiteral(
+                            TypeDescriptor.Companion.parseFromJsonCode(actual).asJsonCode()
                         ))
                         .setExpected(StringExpression.wrapLiteral(expectedTypeDescriptor.get()))
                         .build()
@@ -463,7 +474,7 @@ public class GoldensTest {
             case BOOL_WRAPPER -> new TypedValueType<>(literal.asBool(), Serializers.bool());
             case INT32_WRAPPER -> new TypedValueType<>(literal.asInt32(), Serializers.int32());
             case INT64_WRAPPER -> new TypedValueType<>(literal.asInt64(), Serializers.int64());
-            case UINT64_WRAPPER -> new TypedValueType<>(literal.asUint64(), Serializers.uint64());
+            case UINT64_WRAPPER -> new TypedValueType<>(literal.asUint64(), Serializers.javaUint64());
             case FLOAT32_WRAPPER -> new TypedValueType<>(literal.asFloat32(), Serializers.float32());
             case FLOAT64_WRAPPER -> new TypedValueType<>(literal.asFloat64(), Serializers.float64());
             case TIMESTAMP_WRAPPER -> new TypedValueType<>(literal.asTimestamp(), Serializers.timestamp());
@@ -481,6 +492,8 @@ public class GoldensTest {
             case COLOR_WRAPPER -> new TypedValueType<>(literal.asColor(), Color.SERIALIZER);
             case MY_ENUM_WRAPPER -> new TypedValueType<>(literal.asMyEnum(), MyEnum.SERIALIZER);
             case KEYED_ARRAYS_WRAPPER -> new TypedValueType<>(literal.asKeyedArrays(), KeyedArrays.SERIALIZER);
+            case REC_STRUCT_WRAPPER -> new TypedValueType<>(literal.asRecStruct(), RecStruct.SERIALIZER);
+            case REC_ENUM_WRAPPER -> new TypedValueType<>(literal.asRecEnum(), RecEnum.SERIALIZER);
             case ROUND_TRIP_DENSE_JSON_WRAPPER -> {
                 TypedValueType<?> other = evaluateTypedValue(literal.asRoundTripDenseJson());
                 @SuppressWarnings("unchecked")

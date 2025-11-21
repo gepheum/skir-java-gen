@@ -74,9 +74,8 @@ export class TypeSpeller {
             case "int32":
               return "java.lang.Integer";
             case "int64":
-              return "java.lang.Long";
             case "uint64":
-              return "kotlin.ULong";
+              return "java.lang.Long";
             case "float32":
               return "java.lang.Float";
             case "float64":
@@ -99,9 +98,8 @@ export class TypeSpeller {
             case "int32":
               return "int";
             case "int64":
-              return "long";
             case "uint64":
-              return "kotlin.ULong";
+              return "long";
             case "float32":
               return "float";
             case "float64":
@@ -138,7 +136,7 @@ export class TypeSpeller {
           case "int64":
             return "land.soia.Serializers.int64()";
           case "uint64":
-            return "land.soia.Serializers.uint64()";
+            return "land.soia.Serializers.javaUint64()";
           case "float32":
             return "land.soia.Serializers.float32()";
           case "float64":
