@@ -1,7 +1,6 @@
+// TODO: upgrade client lib, update kotlin gen, remove typeDescriptor method...
 // TODO: fix name conflicts in 'naming.ts'
-// TODO: put back enum serializer
 // TODO: golden tests
-// TODO: Constants.Pi.VALUE??? or Constants.PI
 
 import {
   type CodeGenerator,
@@ -14,7 +13,7 @@ import {
   ResolvedType,
 } from "soiac";
 import { z } from "zod";
-import { Namer } from "./naming.js";
+import { Namer, toEnumConstantName } from "./naming.js";
 import { TypeSpeller } from "./type_speller.js";
 
 const Config = z.object({
@@ -135,9 +134,16 @@ class JavaSourceFileGenerator {
         this.writeClassForRecord(target, "top-level");
         break;
       }
+      case "methods": {
+        this.writeClassForMethods(target.methods);
+        break;
+      }
       case "constants": {
         this.writeClassForConstants(target.constants);
         break;
+      }
+      default: {
+        const _: never = target;
       }
     }
 
@@ -261,7 +267,7 @@ class JavaSourceFileGenerator {
     this.push(
       "@java.lang.Override\n",
       "public java.lang.String toString() {\n",
-      `return serializer().toJsonCode(this, land.soia.JsonFlavor.READABLE);\n`,
+      `return SERIALIZER.toJsonCode(this, land.soia.JsonFlavor.READABLE);\n`,
       "}\n\n",
     );
 
@@ -435,21 +441,9 @@ class JavaSourceFileGenerator {
     }
     // _serializer
     this.push(
-      `private static final land.soia.Serializer<${className}> _serializer = (\n`,
+      `public static final land.soia.Serializer<${className}> SERIALIZER = (\n`,
       "land.soia.internal.SerializersKt.makeSerializer(_serializerImpl)\n",
       ");\n\n",
-    );
-    // serializer()
-    this.push(
-      `public static land.soia.Serializer<${className}> serializer() {\n`,
-      "return _serializer;\n",
-      "};\n\n",
-    );
-    // typeDescriptor()
-    this.push(
-      `public static land.soia.reflection.StructDescriptor.Reflective<${className}, ${className}.Builder> typeDescriptor() {\n`,
-      "return _serializerImpl.getTypeDescriptor();\n",
-      "};\n\n",
     );
 
     // Finalize serializer
@@ -514,9 +508,10 @@ class JavaSourceFileGenerator {
       `public static final ${className} UNKNOWN = new ${className}(Kind.UNKNOWN, null);\n`,
     );
     for (const field of constantFields) {
-      const name = field.name.text;
+      const soiaName = field.name.text;
+      const name = toEnumConstantName(field);
       this.push(
-        `public static final ${className} ${name} = new ${className}(Kind.${name}_CONST, null);\n`,
+        `public static final ${className} ${name} = new ${className}(Kind.${soiaName}_CONST, null);\n`,
       );
     }
     this.pushEol();
@@ -669,7 +664,7 @@ class JavaSourceFileGenerator {
     this.push(
       "@java.lang.Override\n",
       "public java.lang.String toString() {\n",
-      `return serializer().toJsonCode(this, land.soia.JsonFlavor.READABLE);\n`,
+      `return SERIALIZER.toJsonCode(this, land.soia.JsonFlavor.READABLE);\n`,
       "}\n\n",
     );
 
@@ -692,52 +687,52 @@ class JavaSourceFileGenerator {
     }
     // _serializer
     this.push(
-      `private static final land.soia.Serializer<${className}> _serializer = (\n`,
+      `public static final land.soia.Serializer<${className}> SERIALIZER = (\n`,
       "land.soia.internal.SerializersKt.makeSerializer(_serializerImpl)\n",
       ");\n\n",
-    );
-    // serializer()
-    this.push(
-      `public static land.soia.Serializer<${className}> serializer() {\n`,
-      "return _serializer;\n",
-      "};\n\n",
-    );
-    // typeDescriptor()
-    this.push(
-      `public static land.soia.reflection.EnumDescriptor.Reflective<${className}> typeDescriptor() {\n`,
-      "return _serializerImpl.getTypeDescriptor();\n",
-      "};\n\n",
     );
 
     // Finalize serializer
     this.push("static {\n");
-    // for (const constField of constantFields) {
-    //   this.push(
-    //     "_serializerImpl.addConstantField(\n",
-    //     `${constField.number},\n`,
-    //     `"${constField.name.text}",\n`,
-    //     '""\n',
-    //     ");\n",
-    //   );
-    // }
-    // TODO: put back
-    // for (const wrapperField of wrapperFields) {
-    //   const serializerExpression = typeSpeller.getSerializerExpression(
-    //     wrapperField.type!,
-    //   );
-    //   const wrapperClassName =
-    //     convertCase(wrapperField.name.text, "lower_underscore", "UpperCamel") +
-    //     "Wrapper";
-    //   this.push(
-    //     "_serializerImpl.addWrapperField(\n",
-    //     `${wrapperField.number},\n`,
-    //     `"${wrapperField.name.text}",\n`,
-    //     `${wrapperClassName}::class.java,\n`,
-    //     `${serializerExpression},\n`,
-    //     `{ ${wrapperClassName}(it) },\n`,
-    //     ") { it.value };\n",
-    //   );
-    // }
+    for (const field of constantFields) {
+      const name = field.name.text;
+      this.push(
+        "_serializerImpl.addConstantField(\n",
+        `${field.number},\n`,
+        `"${name}",\n`,
+        `Kind.${name}_CONST.ordinal(),\n`,
+        `${toEnumConstantName(field)}\n`,
+        ");\n",
+      );
+    }
+    for (const field of wrapperFields) {
+      const type = field.type!;
+      const javaType = typeSpeller.getJavaType(
+        type,
+        "frozen",
+        "must-be-object",
+      );
+      const serializerExpression = typeSpeller.getSerializerExpression(type);
+      const soiaName = field.name.text;
+      const upperCamelName = convertCase(
+        soiaName,
+        "lower_underscore",
+        "UpperCamel",
+      );
+      const kindConstName =
+        convertCase(soiaName, "lower_underscore", "UPPER_UNDERSCORE") +
+        "_WRAPPER";
+      this.push(
+        "_serializerImpl.addWrapperField(\n",
+        `${field.number},\n`,
+        `"${field.name.text}",\n`,
+        `Kind.${kindConstName}.ordinal(),\n`,
+        `${serializerExpression},\n`,
+        `(${javaType} it) -> wrap${upperCamelName}(it),\n`,
+        `(${className} it) -> it.as${upperCamelName}()\n`,
+        ");\n",
+      );
+    }
     for (const removedNumber of record.removedNumbers) {
       this.push(`_serializerImpl.addRemovedNumber(${removedNumber});\n`);
     }
@@ -773,6 +768,48 @@ class JavaSourceFileGenerator {
       }
     }
     return modulePath.replace(/\.soia$/, "") + `/${className}.java`;
+  }
+
+  private writeClassForMethods(methods: readonly Method[]): void {
+    this.push("public final class Methods {\n\n", "private Methods() {}\n\n");
+    for (const method of methods) {
+      this.writeMethod(method);
+    }
+    this.push("}\n\n");
+  }
+
+  private writeMethod(method: Method): void {
+    const { typeSpeller } = this;
+    const requestType = typeSpeller.getJavaType(method.requestType!, "frozen");
+    const requestSerializer = typeSpeller.getSerializerExpression(
+      method.requestType!,
+    );
+    const responseType = typeSpeller.getJavaType(
+      method.responseType!,
+      "frozen",
+    );
+    const responseSerializer = typeSpeller.getSerializerExpression(
+      method.responseType!,
+    );
+
+    const soiaName = method.name.text;
+    const javaName = convertCase(
+      soiaName,
+      "lower_underscore",
+      "UPPER_UNDERSCORE",
+    );
+
+    const methodType = `land.soia.service.Method<${requestType}, ${responseType}>`;
+    this.push(
+      `public static final ${methodType} ${javaName} = (\n`,
+      "new land.soia.service.Method<>(\n",
+      `"${soiaName}",\n`,
+      `${method.number},\n`,
+      `${requestSerializer},\n`,
+      `${responseSerializer}\n`,
+      ")\n",
+      ");\n\n",
+    );
   }
 
   private writeClassForConstants(constants: readonly Constant[]): void {

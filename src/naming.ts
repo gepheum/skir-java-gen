@@ -1,7 +1,6 @@
 import { Field, RecordLocation, convertCase } from "soiac";
 
 export class Namer {
-  // TODO: rm?
   private readonly genPackageFirstName: string;
 
   constructor(private readonly packagePrefix: string) {
@@ -125,13 +124,12 @@ const JAVA_OBJECT_SYMBOLS: ReadonlySet<string> = new Set([
 const GENERATED_STRUCT_SYMBOLS: ReadonlySet<string> = new Set([
   "builder",
   "partialBuilder",
-  "serializer",
   "toBuilder",
-  "typeDescriptor",
 ]);
 
 export function toEnumConstantName(field: Field): string {
-  return field.name.text;
+  const soiaName = field.name.text;
+  return soiaName === "SERIALIZER" ? `${soiaName}_` : soiaName;
 }
 
 export interface ClassName {
