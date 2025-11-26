@@ -39,7 +39,7 @@ export class TypeSpeller {
       case "array": {
         const itemType = this.getJavaType(type.item, flavor, "must-be-object");
         if (flavor === "initializer") {
-          return `java.lang.Iterable<${itemType}>`;
+          return `java.lang.Iterable<? extends ${itemType}>`;
         } else if (flavor === "frozen" || flavor === "frozen-key") {
           if (type.key) {
             const { keyType } = type.key;
