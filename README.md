@@ -75,13 +75,13 @@ assert john.name().equals("John Doe");
 final User jane = User.partialBuilder().setUserId(43).setName("Jane Doe").build();
 
 // Fields not explicitly set are initialized to their default values.
-assert (jane.quote().equals(""));
-assert (jane.pets().equals(List.of()));
+assert jane.quote().equals("");
+assert jane.pets().equals(List.of());
 
 // User.DEFAULT is an instance of User with all fields set to their default
 // values.
-assert (User.DEFAULT.name().equals(""));
-assert (User.DEFAULT.userId() == 0);
+assert User.DEFAULT.name().equals("");
+assert User.DEFAULT.userId() == 0;
 ```
 
 #### Creating modified copies
@@ -96,8 +96,8 @@ final User evilJohn =
         .setQuote("I solemnly swear I am up to no good.")
         .build();
 
-assert (evilJohn.name().equals("Evil John"));
-assert (evilJohn.userId() == 42);
+assert evilJohn.name().equals("Evil John");
+assert evilJohn.userId() == 42;
 ```
 
 ### Enum classes
@@ -250,17 +250,17 @@ System.out.println(serializer.toBytes(john));
 
 final User reserializedJohn =
     serializer.fromJsonCode(serializer.toJsonCode(john));
-assert (reserializedJohn.equals(john));
+assert reserializedJohn.equals(john);
 
 final User reserializedEvilJohn =
     serializer.fromJsonCode(
         // fromJson/fromJsonCode can deserialize both dense and readable JSON
         serializer.toJsonCode(john, JsonFlavor.READABLE));
-assert (reserializedEvilJohn.equals(evilJohn));
+assert reserializedEvilJohn.equals(evilJohn);
 
 final User reserializedJane =
     serializer.fromBytes(serializer.toBytes(jane));
-assert (reserializedJane.equals(jane));
+assert reserializedJane.equals(jane);
 ```
 
 ### Frozen lists and copies
@@ -295,8 +295,8 @@ final User jade =
 // jade.pets().clear();
 // ^ Runtime error: pets is a frozen list
 
-assert (pets.equals(jade.pets()));
-assert (pets != jade.pets());
+assert pets.equals(jade.pets());
+assert pets != jade.pets();
 
 final User jack =
     User.partialBuilder()
@@ -305,7 +305,7 @@ final User jack =
         // The list is already immutable, so Soia does not make a copy
         .build();
 
-assert (jack.pets() == jade.pets());
+assert jack.pets() == jade.pets();
 ```
 
 ### Keyed lists
@@ -318,10 +318,10 @@ final UserRegistry userRegistry =
 // In this example, the key is the user id.
 // The first lookup runs in O(N) time, and the following lookups run in O(1)
 // time.
-assert (userRegistry.users().findByKey(43) == jane);
+assert userRegistry.users().findByKey(43) == jane;
 // If multiple elements have the same key, the last one is returned.
-assert (userRegistry.users().findByKey(42) == evilJohn);
-assert (userRegistry.users().findByKey(100) == null);
+assert userRegistry.users().findByKey(42) == evilJohn;
+assert userRegistry.users().findByKey(100) == null;
 ```
 
 ### Constants
