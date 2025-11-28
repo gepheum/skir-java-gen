@@ -392,6 +392,27 @@ assert ((StructDescriptor) typeDescriptor).getFields().size() == 5;
 System.out.println(
     AllStringsToUpperCase.allStringsToUpperCase(
         Constants.TARZAN, User.TYPE_DESCRIPTOR));
+// {
+//   "user_id": 123,
+//   "name": "TARZAN",
+//   "quote": "AAAAAAAAAAYAAAAAAAAAAYAAAAAAAAAA",
+//   "pets": [
+//     {
+//       "name": "CHEETA",
+//       "height_in_meters": 1.67,
+//       "picture": "🐒"
+//     }
+//   ],
+//   "subscription_status": {
+//     "kind": "trial",
+//     "value": {
+//       "start_time": {
+//         "unix_millis": 1743592409000,
+//         "formatted": "2025-04-02T11:13:29Z"
+//       }
+//     }
+//   }
+// }
 ```
 
 ## Java codegen versus Kotlin codegen
