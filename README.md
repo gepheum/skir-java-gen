@@ -17,7 +17,7 @@ In your `soia.yml` file, add the following snippet under `generators`:
 
 The `npm run soiac` command will now generate .java files within the `soiagen` directory.
 
-The generated Java code has a dependency on `land.soia:soia-kotlin-client`. Add this line to your `build.gradle` file:
+The generated Java code has a runtime dependency on `land.soia:soia-kotlin-client`. Add this line to your `build.gradle` file in the `dependencies` section:
 
 ```gradle
 implementation 'land.soia:soia-kotlin-client:1.1.3'  // Pick the latest version
