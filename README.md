@@ -20,7 +20,7 @@ The `npm run soiac` command will now generate .java files within the `soiagen` d
 The generated Java code has a runtime dependency on `land.soia:soia-kotlin-client`. Add this line to your `build.gradle` file in the `dependencies` section:
 
 ```gradle
-implementation 'land.soia:soia-kotlin-client:1.1.3'  // Pick the latest version
+implementation 'land.soia:soia-kotlin-client:1.1.4'  // Pick the latest version
 ```
 
 For more information, see this Java project [example](https://github.com/gepheum/soia-java-example).
