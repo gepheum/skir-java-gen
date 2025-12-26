@@ -1,7 +1,3 @@
-// TODO: add comments to generated code
-// TODO: add comments to records/fields/methods
-// TODO: s/field/variant for enums
-
 import {
   type CodeGenerator,
   type Constant,
@@ -120,7 +116,7 @@ class JavaSourceFileGenerator {
       //
 
       // To install the skir client library, add:
-      //   implementation("build.skir:skir-kotlin-client:latest.release")
+      //   implementation("build.skir:skir-client:latest.release")
       // to your build.gradle file
 
       `,
@@ -171,7 +167,9 @@ class JavaSourceFileGenerator {
     const className = this.namer.getClassName(recordLocation).name;
     const fields = [...record.fields];
     fields.sort((a, b) => a.name.text.localeCompare(b.name.text));
+
     this.push(
+      commentify([docToCommentText(record.doc), "\nDeeply immutable."]),
       "public ",
       nested === "nested" ? "static " : "",
       `final class ${className} {\n`,
@@ -214,6 +212,7 @@ class JavaSourceFileGenerator {
     this.push(
       "this._u = null;\n",
       "}\n\n",
+      `/** Instance with all fields set to their default values. */\n`,
       `public static final ${className} DEFAULT = new ${className}();\n\n`,
     );
 
@@ -221,7 +220,10 @@ class JavaSourceFileGenerator {
     for (const field of fields) {
       const fieldName = namer.structFieldToJavaName(field);
       const type = typeSpeller.getJavaType(field.type!, "frozen");
-      this.push(`public ${type} ${fieldName}() {\n`);
+      this.push(
+        commentify([docToCommentText(field.doc)]),
+        `public ${type} ${fieldName}() {\n`,
+      );
       if (field.isRecursive === "hard") {
         const defaultExpr = this.getDefaultExpression(field.type!);
         this.push(
@@ -238,7 +240,13 @@ class JavaSourceFileGenerator {
     }
 
     // toBuilder()
-    this.push(`public Builder toBuilder() {\n`);
+    this.push(`
+      /**
+       * Returns a new builder with all fields copied from this instance.
+       * Usage: set the fields you want to modify and call \`build()\` to obtain a
+       * modified copy.
+       */
+      public Builder toBuilder() {\n`);
     this.push(`return new Builder(\n`);
     for (const field of fields) {
       const fieldName = namer.structFieldToJavaName(field);
@@ -290,18 +298,22 @@ class JavaSourceFileGenerator {
         ? "Builder_At" + convertCase(firstField.name.text, "UpperCamel")
         : "Builder_Done";
       this.push(
-        `public static ${retType} builder() {\n`,
-        "return new Builder();\n",
-        "}\n\n",
+        `/**
+          * Returns a new builder for constructing {@code ${className}} instances.
+          * All fields must be specified in alphabetical order before you can call \`build()\`.
+          */
+        public static ${retType} builder() {
+          return new Builder();
+        }
+
+        /**
+         * Returns a new builder with all fields initialized to their default values.
+         */
+        public static Builder partialBuilder() {
+          return new Builder();
+        }\n\n`,
       );
     }
-
-    // partialBuilder()
-    this.push(
-      "public static Builder partialBuilder() {\n",
-      "return new Builder();\n",
-      "}\n\n",
-    );
 
     // Builder_At? interfaces
     for (const [index, field] of fields.entries()) {
@@ -314,6 +326,7 @@ class JavaSourceFileGenerator {
       const paramType = typeSpeller.getJavaType(field.type!, "initializer");
       this.push(
         `public interface Builder_At${upperCamelName} {\n`,
+        commentify([docToCommentText(field.doc)]),
         `${retType} set${upperCamelName}(${paramType} ${fieldName});\n`,
         "}\n\n",
       );
@@ -430,18 +443,23 @@ class JavaSourceFileGenerator {
 
     // SERIALIZER
     this.push(
-      `public static final build.skir.Serializer<${className}> SERIALIZER = (\n`,
-      "build.skir.internal.SerializersKt.makeSerializer(_serializerImpl)\n",
-      ");\n\n",
+      `/** Serializer for {@code ${className}} instances. */
+      public static final build.skir.Serializer<${className}> SERIALIZER = (
+        build.skir.internal.SerializersKt.makeSerializer(_serializerImpl)
+      );\n\n`,
     );
 
     // TYPE_DESCRIPTOR
     {
       const typeDescriptorType = `build.skir.reflection.StructDescriptor.Reflective<${className}, ${className}.Builder>`;
       this.push(
-        `public static final ${typeDescriptorType} TYPE_DESCRIPTOR = (\n`,
-        "_serializerImpl\n",
-        ");\n\n",
+        `/**
+         * Describes the {@code ${className}} type.
+         * Provides runtime introspection capabilities.
+         */
+        public static final ${typeDescriptorType} TYPE_DESCRIPTOR = (
+          _serializerImpl
+        );\n\n`,
       );
     }
 
@@ -486,12 +504,17 @@ class JavaSourceFileGenerator {
     const constantVariants = variants.filter((v) => !v.type);
     const wrapperVariants = variants.filter((v) => v.type);
     this.push(
+      commentify([docToCommentText(record.doc), "\nDeeply immutable."]),
       "public ",
       nested === "nested" ? "static " : "",
       `final class ${className} {\n`,
     );
     // Kind enum
-    this.push("public enum Kind {\n", "UNKNOWN,\n");
+    this.push(
+      `/** The kind of variant held by a {@code ${className}}. */
+      public enum Kind {
+        UNKNOWN,\n`,
+    );
     for (const variant of constantVariants) {
       this.push(variant.name.text, "_CONST,\n");
     }
@@ -505,12 +528,17 @@ class JavaSourceFileGenerator {
 
     // Constants
     this.push(
-      `public static final ${className} UNKNOWN = new ${className}(Kind.UNKNOWN, null);\n`,
+      `/**
+       * Constant indicating an unknown {@code ${className}}.
+       * Default value for fields of type {@code ${className}}.
+       */
+      public static final ${className} UNKNOWN = new ${className}(Kind.UNKNOWN, null);\n`,
     );
     for (const variant of constantVariants) {
       const skirName = variant.name.text;
       const name = toEnumConstantName(variant);
       this.push(
+        commentify(docToCommentText(variant.doc)),
         `public static final ${className} ${name} = new ${className}(Kind.${skirName}_CONST, null);\n`,
       );
     }
@@ -518,11 +546,9 @@ class JavaSourceFileGenerator {
 
     // WrapX methods
     for (const variant of wrapperVariants) {
-      const upperCamelName = convertCase(variant.name.text, "UpperCamel");
-      const upperUnderscoreName = convertCase(
-        variant.name.text,
-        "UPPER_UNDERSCORE",
-      );
+      const variantName = variant.name.text;
+      const upperCamelName = convertCase(variantName, "UpperCamel");
+      const upperUnderscoreName = convertCase(variantName, "UPPER_UNDERSCORE");
       const type = variant.type!;
       const initializerType = typeSpeller.getJavaType(type, "initializer");
       const frozenType = typeSpeller.getJavaType(type, "frozen");
@@ -533,10 +559,11 @@ class JavaSourceFileGenerator {
         "_e",
       );
       this.push(
-        `public static ${className} wrap${upperCamelName}(${initializerType} value) {\n`,
-        `final ${frozenType} v = ${toFrozenExpr};\n`,
-        `return new ${className}(Kind.${upperUnderscoreName}_WRAPPER, v);\n`,
-        "}\n\n",
+        `/** Create a '${variantName}' variant wrapping around the given value. */
+        public static ${className} wrap${upperCamelName}(${initializerType} value) {
+        final ${frozenType} v = ${toFrozenExpr};
+          return new ${className}(Kind.${upperUnderscoreName}_WRAPPER, v);
+        }\n\n`,
       );
     }
 
@@ -547,30 +574,42 @@ class JavaSourceFileGenerator {
 
     // Constructor
     this.push(
-      `private ${className}(Kind kind, java.lang.Object value) {\n`,
-      "this.kind = kind;\n",
-      "this.value = value;\n",
-      "}\n\n",
+      `private ${className}(Kind kind, java.lang.Object value) {
+        this.kind = kind;
+        this.value = value;
+      }\n\n`,
     );
 
     // kind()
-    this.push("public Kind kind() {\n", "return kind;\n", "}\n\n");
+    this.push(
+      `/** Returns the kind of variant held by this instance. */
+      public Kind kind() {
+        return kind;
+      }\n\n`,
+    );
 
-    // asX() methods
+    // isX() and asX() methods
     for (const variant of wrapperVariants) {
       const type = typeSpeller.getJavaType(variant.type!, "frozen");
-      const upperCamelName = convertCase(variant.name.text, "UpperCamel");
-      const upperUnderscoreName = convertCase(
-        variant.name.text,
-        "UPPER_UNDERSCORE",
-      );
+      const variantName = variant.name.text;
+      const upperCamelName = convertCase(variantName, "UpperCamel");
+      const upperUnderscoreName = convertCase(variantName, "UPPER_UNDERSCORE");
       this.push(
-        `public ${type} as${upperCamelName}() {\n`,
-        `if (kind != Kind.${upperUnderscoreName}_WRAPPER) {\n`,
-        `throw new java.lang.IllegalStateException("kind=" + kind.name());\n`,
-        "}\n",
-        `return (${type}) value;\n`,
-        "}\n\n",
+        `/** Returns true if this instance holds a '${variantName}' variant. */
+        public boolean is${upperCamelName}() {
+          return kind == Kind.${upperUnderscoreName}_WRAPPER;
+        }
+
+        /**
+         * Assuming this instance holds a '${variantName}' variant, returns its value.
+         * @throws IllegalStateException if this instance does not hold a '${variantName}' variant.
+         */
+        public ${type} as${upperCamelName}() {
+          if (kind != Kind.${upperUnderscoreName}_WRAPPER) {
+            throw new java.lang.IllegalStateException("kind=" + kind.name());
+          }
+          return (${type}) value;
+        }\n\n`,
       );
     }
 
@@ -614,30 +653,30 @@ class JavaSourceFileGenerator {
 
     // equals()
     this.push(
-      "@java.lang.Override\n",
-      "public boolean equals(Object other) {\n",
-      `if (!(other instanceof ${className})) return false;\n`,
-      `final ${className} otherEnum = (${className}) other;\n`,
-      "if (kind == Kind.UNKNOWN) return otherEnum.kind == Kind.UNKNOWN;\n",
-      "return kind == otherEnum.kind && java.util.Objects.equals(value, otherEnum.value);\n",
-      "}\n\n",
+      `@java.lang.Override
+      public boolean equals(Object other) {
+        if (!(other instanceof ${className})) return false;
+        final ${className} otherEnum = (${className}) other;
+        if (kind == Kind.UNKNOWN) return otherEnum.kind == Kind.UNKNOWN;
+        return kind == otherEnum.kind && java.util.Objects.equals(value, otherEnum.value);
+      }\n\n`,
     );
 
     // hashCode()
     this.push(
-      "@java.lang.Override\n",
-      "public int hashCode() {\n",
-      "final Object v = kind == Kind.UNKNOWN ? null : value;\n",
-      "return 31 * java.util.Objects.hashCode(v) + kind.ordinal();\n",
-      "}\n\n",
+      `@java.lang.Override
+      public int hashCode() {
+        final Object v = kind == Kind.UNKNOWN ? null : value;
+        return 31 * java.util.Objects.hashCode(v) + kind.ordinal();
+      }\n\n`,
     );
 
     // toString()
     this.push(
-      "@java.lang.Override\n",
-      "public java.lang.String toString() {\n",
-      `return SERIALIZER.toJsonCode(this, build.skir.JsonFlavor.READABLE);\n`,
-      "}\n\n",
+      `@java.lang.Override
+      public java.lang.String toString() {
+        return SERIALIZER.toJsonCode(this, build.skir.JsonFlavor.READABLE);
+      }\n\n`,
     );
 
     // _serializerImpl
@@ -661,18 +700,23 @@ class JavaSourceFileGenerator {
 
     // SERIALIZER
     this.push(
-      `public static final build.skir.Serializer<${className}> SERIALIZER = (\n`,
-      "build.skir.internal.SerializersKt.makeSerializer(_serializerImpl)\n",
-      ");\n\n",
+      `/** Serializer for {@code ${className}} instances. */
+      public static final build.skir.Serializer<${className}> SERIALIZER = (
+        build.skir.internal.SerializersKt.makeSerializer(_serializerImpl)
+      );\n\n`,
     );
 
     // TYPE_DESCRIPTOR
     {
       const typeDescriptorType = `build.skir.reflection.EnumDescriptor.Reflective<${className}>`;
       this.push(
-        `public static final ${typeDescriptorType} TYPE_DESCRIPTOR = (\n`,
-        "_serializerImpl\n",
-        ");\n\n",
+        `/**
+         * Describes the {@code ${className}} type.
+         * Provides runtime introspection capabilities.
+         */
+        public static final ${typeDescriptorType} TYPE_DESCRIPTOR = (
+          _serializerImpl
+        );\n\n`,
       );
     }
 
@@ -778,15 +822,16 @@ class JavaSourceFileGenerator {
 
     const methodType = `build.skir.service.Method<${requestType}, ${responseType}>`;
     this.push(
-      `public static final ${methodType} ${javaName} = (\n`,
-      "new build.skir.service.Method<>(\n",
-      `"${skirName}",\n`,
-      `${method.number}L,\n`,
-      `${requestSerializer},\n`,
-      `${responseSerializer},\n`,
-      `${toJavaStringLiteral(docToCommentText(method.doc))}\n`,
-      ")\n",
-      ");\n\n",
+      commentify(docToCommentText(method.doc)),
+      `public static final ${methodType} ${javaName} = (
+        new build.skir.service.Method<>(
+          "${skirName}",
+          ${method.number}L,
+          ${requestSerializer},
+          ${responseSerializer},
+          ${toJavaStringLiteral(docToCommentText(method.doc))}
+        )
+      );\n\n`,
     );
   }
 
@@ -813,9 +858,10 @@ class JavaSourceFileGenerator {
       JSON.stringify(constant.valueAsDenseJson),
     );
     this.push(
-      `public static final ${javaType} ${name} = (\n`,
-      `${serializerExpression}.fromJsonCode(${jsonStringLiteral})\n`,
-      ");\n\n",
+      commentify(docToCommentText(constant.doc)),
+      `public static final ${javaType} ${name} = (
+        ${serializerExpression}.fromJsonCode(${jsonStringLiteral})
+      );\n\n`,
     );
   }
 
@@ -999,9 +1045,11 @@ class JavaSourceFileGenerator {
           break;
         }
       }
-      const indent = indentUnit.repeat(contextStack.length);
+      const indent =
+        indentUnit.repeat(contextStack.length) +
+        (line.startsWith("*") ? " " : "");
       result += `${indent}${line.trimEnd()}\n`;
-      if (line.startsWith("//")) {
+      if (line.startsWith("/") || line.startsWith("*")) {
         continue;
       }
       const lastChar = line.slice(-1);

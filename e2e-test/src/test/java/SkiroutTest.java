@@ -136,6 +136,8 @@ public class SkiroutTest {
     array.add(JsonValue.NULL);
     JsonValue jsonValue = JsonValue.wrapArray(array);
     Assertions.assertEquals(array, jsonValue.asArray());
+    Assertions.assertTrue(jsonValue.isArray());
+    Assertions.assertFalse(JsonValue.NULL.isArray());
   }
 
   @Test
