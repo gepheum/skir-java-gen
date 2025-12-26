@@ -482,9 +482,9 @@ class JavaSourceFileGenerator {
     const { recordMap, typeSpeller } = this;
     const recordLocation = recordMap.get(record.key)!;
     const className = this.namer.getClassName(recordLocation).name;
-    const { fields } = record;
-    const constantFields = fields.filter((f) => !f.type);
-    const wrapperFields = fields.filter((f) => f.type);
+    const { fields: variants } = record;
+    const constantVariants = variants.filter((v) => !v.type);
+    const wrapperVariants = variants.filter((v) => v.type);
     this.push(
       "public ",
       nested === "nested" ? "static " : "",
@@ -492,12 +492,12 @@ class JavaSourceFileGenerator {
     );
     // Kind enum
     this.push("public enum Kind {\n", "UNKNOWN,\n");
-    for (const field of constantFields) {
-      this.push(field.name.text, "_CONST,\n");
+    for (const variant of constantVariants) {
+      this.push(variant.name.text, "_CONST,\n");
     }
-    for (const field of wrapperFields) {
+    for (const variant of wrapperVariants) {
       this.push(
-        convertCase(field.name.text, "UPPER_UNDERSCORE"),
+        convertCase(variant.name.text, "UPPER_UNDERSCORE"),
         "_WRAPPER,\n",
       );
     }
@@ -507,9 +507,9 @@ class JavaSourceFileGenerator {
     this.push(
       `public static final ${className} UNKNOWN = new ${className}(Kind.UNKNOWN, null);\n`,
     );
-    for (const field of constantFields) {
-      const skirName = field.name.text;
-      const name = toEnumConstantName(field);
+    for (const variant of constantVariants) {
+      const skirName = variant.name.text;
+      const name = toEnumConstantName(variant);
       this.push(
         `public static final ${className} ${name} = new ${className}(Kind.${skirName}_CONST, null);\n`,
       );
@@ -517,13 +517,13 @@ class JavaSourceFileGenerator {
     this.pushEol();
 
     // WrapX methods
-    for (const field of wrapperFields) {
-      const upperCamelName = convertCase(field.name.text, "UpperCamel");
+    for (const variant of wrapperVariants) {
+      const upperCamelName = convertCase(variant.name.text, "UpperCamel");
       const upperUnderscoreName = convertCase(
-        field.name.text,
+        variant.name.text,
         "UPPER_UNDERSCORE",
       );
-      const type = field.type!;
+      const type = variant.type!;
       const initializerType = typeSpeller.getJavaType(type, "initializer");
       const frozenType = typeSpeller.getJavaType(type, "frozen");
       const toFrozenExpr = this.toFrozenExpression(
@@ -540,7 +540,6 @@ class JavaSourceFileGenerator {
       );
     }
 
-    // Declare fields
     this.push(
       "private final Kind kind;\n",
       "private final java.lang.Object value;\n\n",
@@ -558,11 +557,11 @@ class JavaSourceFileGenerator {
     this.push("public Kind kind() {\n", "return kind;\n", "}\n\n");
 
     // asX() methods
-    for (const field of wrapperFields) {
-      const type = typeSpeller.getJavaType(field.type!, "frozen");
-      const upperCamelName = convertCase(field.name.text, "UpperCamel");
+    for (const variant of wrapperVariants) {
+      const type = typeSpeller.getJavaType(variant.type!, "frozen");
+      const upperCamelName = convertCase(variant.name.text, "UpperCamel");
       const upperUnderscoreName = convertCase(
-        field.name.text,
+        variant.name.text,
         "UPPER_UNDERSCORE",
       );
       this.push(
@@ -577,13 +576,13 @@ class JavaSourceFileGenerator {
 
     // Visitor
     this.push("public interface Visitor<R> {\n", "R onUnknown();\n");
-    for (const field of constantFields) {
-      const upperCamelName = convertCase(field.name.text, "UpperCamel");
+    for (const variant of constantVariants) {
+      const upperCamelName = convertCase(variant.name.text, "UpperCamel");
       this.push(`R on${upperCamelName}();\n`);
     }
-    for (const field of wrapperFields) {
-      const upperCamelName = convertCase(field.name.text, "UpperCamel");
-      const type = typeSpeller.getJavaType(field.type!, "frozen");
+    for (const variant of wrapperVariants) {
+      const upperCamelName = convertCase(variant.name.text, "UpperCamel");
+      const type = typeSpeller.getJavaType(variant.type!, "frozen");
       this.push(`R on${upperCamelName}(${type} value);\n`);
     }
     this.push("}\n\n");
@@ -593,20 +592,20 @@ class JavaSourceFileGenerator {
       "public <R> R accept(Visitor<R> visitor) {\n",
       "return switch (kind) {\n",
     );
-    for (const field of constantFields) {
-      const upperUnderscoreName = field.name.text;
-      const upperCamelName = convertCase(field.name.text, "UpperCamel");
+    for (const variant of constantVariants) {
+      const upperUnderscoreName = variant.name.text;
+      const upperCamelName = convertCase(variant.name.text, "UpperCamel");
       this.push(
         `case ${upperUnderscoreName}_CONST -> visitor.on${upperCamelName}();\n`,
       );
     }
-    for (const field of wrapperFields) {
+    for (const variant of wrapperVariants) {
       const upperUnderscoreName = convertCase(
-        field.name.text,
+        variant.name.text,
         "UPPER_UNDERSCORE",
       );
-      const upperCamelName = convertCase(field.name.text, "UpperCamel");
-      const type = typeSpeller.getJavaType(field.type!, "frozen");
+      const upperCamelName = convertCase(variant.name.text, "UpperCamel");
+      const type = typeSpeller.getJavaType(variant.type!, "frozen");
       this.push(
         `case ${upperUnderscoreName}_WRAPPER -> visitor.on${upperCamelName}((${type}) value);\n`,
       );
@@ -679,37 +678,37 @@ class JavaSourceFileGenerator {
 
     // Finalize serializer
     this.push("static {\n");
-    for (const field of constantFields) {
-      const name = field.name.text;
+    for (const variant of constantVariants) {
+      const name = variant.name.text;
       this.push(
         "_serializerImpl.addConstantVariant(\n",
-        `${field.number},\n`,
+        `${variant.number},\n`,
         `"${name}",\n`,
         `Kind.${name}_CONST.ordinal(),\n`,
-        `${toJavaStringLiteral(docToCommentText(field.doc))},\n`,
-        `${toEnumConstantName(field)}\n`,
+        `${toJavaStringLiteral(docToCommentText(variant.doc))},\n`,
+        `${toEnumConstantName(variant)}\n`,
         ");\n",
       );
     }
-    for (const field of wrapperFields) {
-      const type = field.type!;
+    for (const variant of wrapperVariants) {
+      const type = variant.type!;
       const javaType = typeSpeller.getJavaType(
         type,
         "frozen",
         "must-be-object",
       );
       const serializerExpression = typeSpeller.getSerializerExpression(type);
-      const skirName = field.name.text;
+      const skirName = variant.name.text;
       const upperCamelName = convertCase(skirName, "UpperCamel");
       const kindConstName =
         convertCase(skirName, "UPPER_UNDERSCORE") + "_WRAPPER";
       this.push(
         "_serializerImpl.addWrapperVariant(\n",
-        `${field.number},\n`,
-        `"${field.name.text}",\n`,
+        `${variant.number},\n`,
+        `"${variant.name.text}",\n`,
         `Kind.${kindConstName}.ordinal(),\n`,
         `${serializerExpression},\n`,
-        `${toJavaStringLiteral(docToCommentText(field.doc))},\n`,
+        `${toJavaStringLiteral(docToCommentText(variant.doc))},\n`,
         `(${javaType} it) -> wrap${upperCamelName}(it),\n`,
         `(${className} it) -> it.as${upperCamelName}()\n`,
         ");\n",
