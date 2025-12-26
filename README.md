@@ -1,49 +1,49 @@
-[![npm](https://img.shields.io/npm/v/soia-java-gen)](https://www.npmjs.com/package/soia-java-gen)
-[![build](https://github.com/gepheum/soia-java-gen/workflows/Build/badge.svg)](https://github.com/gepheum/soia-java-gen/actions)
+[![npm](https://img.shields.io/npm/v/skir-java-gen)](https://www.npmjs.com/package/skir-java-gen)
+[![build](https://github.com/gepheum/skir-java-gen/workflows/Build/badge.svg)](https://github.com/gepheum/skir-java-gen/actions)
 
-# Soia's Java code generator
+# skir's Java code generator
 
-Official plugin for generating Java code from [.soia](https://github.com/gepheum/soia) files.
+Official plugin for generating Java code from [.skir](https://github.com/gepheum/skir) files.
 
 ## Installation
 
-From your project's root directory, run `npm i --save-dev soia-java-gen`.
+From your project's root directory, run `npm i --save-dev skir-java-gen`.
 
-In your `soia.yml` file, add the following snippet under `generators`:
+In your `skir.yml` file, add the following snippet under `generators`:
 ```yaml
-  - mod: soia-java-gen
+  - mod: skir-java-gen
     config: {}
 ```
 
-The `npm run soiac` command will now generate .java files within the `soiagen` directory.
+The `npm run skirc` command will now generate .java files within the `skirout` directory.
 
-The generated Java code has a runtime dependency on `land.soia:soia-kotlin-client`. Add this line to your `build.gradle` file in the `dependencies` section:
+The generated Java code has a runtime dependency on `build.skir:skir-kotlin-client`. Add this line to your `build.gradle` file in the `dependencies` section:
 
 ```gradle
-implementation 'land.soia:soia-kotlin-client:1.1.4'  // Pick the latest version
+implementation 'build.skir:skir-kotlin-client:1.1.4'  // Pick the latest version
 ```
 
-For more information, see this Java project [example](https://github.com/gepheum/soia-java-example).
+For more information, see this Java project [example](https://github.com/gepheum/skir-java-example).
 
 ## Java generated code guide
 
-The examples below are for the code generated from [this](https://github.com/gepheum/soia-java-example/blob/main/soia-src/user.soia) .soia file.
+The examples below are for the code generated from [this](https://github.com/gepheum/skir-java-example/blob/main/skir-src/user.skir) .skir file.
 
 ### Referring to generated symbols
 
 ```java
-// Import the given symbols from the Java module generated from "user.soia"
-import soiagen.user.User;
-import soiagen.user.UserRegistry;
-import soiagen.user.SubscriptionStatus;
-import soiagen.user.Constants;
+// Import the given symbols from the Java module generated from "user.skir"
+import skirout.user.User;
+import skirout.user.UserRegistry;
+import skirout.user.SubscriptionStatus;
+import skirout.user.Constants;
 
 // Now you can use: Constants.TARZAN, User, UserRegistry, SubscriptionStatus, etc.
 ```
 
 ### Struct classes
 
-Soia generates a deeply immutable Java class for every struct in the .soia file.
+skir generates a deeply immutable Java class for every struct in the .skir file.
 
 ```java
 // To construct a User, use the builder pattern.
@@ -102,9 +102,9 @@ assert evilJohn.userId() == 42;
 
 ### Enum classes
 
-Soia generates a deeply immutable Java class for every enum in the .soia file. This class is *not* a Java enum, although the syntax for referring to constants is similar.
+skir generates a deeply immutable Java class for every enum in the .skir file. This class is *not* a Java enum, although the syntax for referring to constants is similar.
 
-The definition of the `SubscriptionStatus` enum in the .soia file is:
+The definition of the `SubscriptionStatus` enum in the .skir file is:
 ```rust
 enum SubscriptionStatus {
   FREE;
@@ -118,8 +118,8 @@ enum SubscriptionStatus {
 ```java
 final List<SubscriptionStatus> someStatuses =
     List.of(
-        // The UNKNOWN constant is present in all Soia enums even if it is not
-        // declared in the .soia file.
+        // The UNKNOWN constant is present in all skir enums even if it is not
+        // declared in the .skir file.
         SubscriptionStatus.UNKNOWN,
         SubscriptionStatus.FREE,
         SubscriptionStatus.PREMIUM,
@@ -229,7 +229,7 @@ System.out.println(serializer.toJsonCode(john, JsonFlavor.READABLE));
 // }
 
 // The dense JSON flavor is the flavor you should pick if you intend to
-// deserialize the value in the future. Soia allows fields to be renamed,
+// deserialize the value in the future. skir allows fields to be renamed,
 // and because field names are not part of the dense JSON, renaming a field
 // does not prevent you from deserializing the value.
 // You should pick the readable flavor mostly for debugging purposes.
@@ -266,8 +266,8 @@ assert reserializedJane.equals(jane);
 ### Frozen lists and copies
 
 ```java
-// Since all Soia objects are deeply immutable, all lists contained in a
-// Soia object are also deeply immutable.
+// Since all skir objects are deeply immutable, all lists contained in a
+// skir object are also deeply immutable.
 // This section helps understand when lists are copied and when they are
 // not.
 
@@ -289,7 +289,7 @@ final User jade =
     User.partialBuilder()
         .setName("Jade")
         .setPets(pets)
-        // 'pets' is mutable, so Soia makes an immutable shallow copy of it
+        // 'pets' is mutable, so skir makes an immutable shallow copy of it
         .build();
 
 // jade.pets().clear();
@@ -302,7 +302,7 @@ final User jack =
     User.partialBuilder()
         .setName("Jack")
         .setPets(jade.pets())
-        // The list is already immutable, so Soia does not make a copy
+        // The list is already immutable, so skir does not make a copy
         .build();
 
 assert jack.pets() == jade.pets();
@@ -314,7 +314,7 @@ assert jack.pets() == jade.pets();
 final UserRegistry userRegistry =
     UserRegistry.builder().setUsers(List.of(john, jane, evilJohn)).build();
 
-// findByKey() returns the user with the given key (specified in the .soia file).
+// findByKey() returns the user with the given key (specified in the .skir file).
 // In this example, the key is the user id.
 // The first lookup runs in O(N) time, and the following lookups run in O(1)
 // time.
@@ -351,23 +351,23 @@ System.out.println(Constants.TARZAN);
 // }
 ```
 
-### Soia services
+### skir services
 
-#### Starting a soia service on an HTTP server
+#### Starting a skir service on an HTTP server
 
-Full example [here](https://github.com/gepheum/soia-java-example/blob/main/src/main/java/examples/StartService.java).
+Full example [here](https://github.com/gepheum/skir-java-example/blob/main/src/main/java/examples/StartService.java).
 
-#### Sending RPCs to a soia service
+#### Sending RPCs to a skir service
 
-Full example [here](https://github.com/gepheum/soia-java-example/blob/main/src/main/java/examples/CallService.java).
+Full example [here](https://github.com/gepheum/skir-java-example/blob/main/src/main/java/examples/CallService.java).
 
 ### Reflection
 
-Reflection allows you to inspect a soia type at runtime.
+Reflection allows you to inspect a skir type at runtime.
 
 ```java
-import land.soia.reflection.StructDescriptor;
-import land.soia.reflection.TypeDescriptor;
+import build.skir.reflection.StructDescriptor;
+import build.skir.reflection.TypeDescriptor;
 
 System.out.println(
     User.TYPE_DESCRIPTOR
@@ -386,9 +386,9 @@ assert typeDescriptor instanceof StructDescriptor;
 assert ((StructDescriptor) typeDescriptor).getFields().size() == 5;
 
 // The 'allStringsToUpperCase' function uses reflection to convert all the
-// strings contained in a given Soia value to upper case.
+// strings contained in a given skir value to upper case.
 // See the implementation at
-// https://github.com/gepheum/soia-java-example/blob/main/src/main/java/examples/AllStringsToUpperCase.java
+// https://github.com/gepheum/skir-java-example/blob/main/src/main/java/examples/AllStringsToUpperCase.java
 System.out.println(
     AllStringsToUpperCase.allStringsToUpperCase(
         Constants.TARZAN, User.TYPE_DESCRIPTOR));
@@ -417,8 +417,8 @@ System.out.println(
 
 ## Java codegen versus Kotlin codegen
 
-While Java and Kotlin code can interoperate seamlessly, Soia provides separate code generators for each language to leverage their unique strengths and idioms. For instance, the Kotlin generator utilizes named parameters for struct construction, whereas the Java generator employs the builder pattern. 
+While Java and Kotlin code can interoperate seamlessly, skir provides separate code generators for each language to leverage their unique strengths and idioms. For instance, the Kotlin generator utilizes named parameters for struct construction, whereas the Java generator employs the builder pattern. 
 
 Although it's technically feasible to use Kotlin-generated code in a Java project (or vice versa), doing so results in an API that feels unnatural and cumbersome in the calling language. For the best developer experience, use the code generator that matches your project's primary language.
 
-Note that both the Java and Kotlin generated code share the same runtime dependency: `land.soia:soia-kotlin-client`.
+Note that both the Java and Kotlin generated code share the same runtime dependency: `build.skir:skir-kotlin-client`.

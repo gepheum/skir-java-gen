@@ -1,28 +1,28 @@
+import build.skir.JsonFlavor;
+import build.skir.Serializer;
+import build.skir.Serializers;
+import build.skir.UnrecognizedValuesPolicy;
+import build.skir.reflection.TypeDescriptor;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
-import land.soia.JsonFlavor;
-import land.soia.Serializer;
-import land.soia.Serializers;
-import land.soia.UnrecognizedFieldsPolicy;
-import land.soia.reflection.TypeDescriptor;
 import okio.ByteString;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
-import soiagen.goldens.Assertion;
-import soiagen.goldens.BytesExpression;
-import soiagen.goldens.Color;
-import soiagen.goldens.Constants;
-import soiagen.goldens.KeyedArrays;
-import soiagen.goldens.MyEnum;
-import soiagen.goldens.Point;
-import soiagen.goldens.RecEnum;
-import soiagen.goldens.RecStruct;
-import soiagen.goldens.StringExpression;
-import soiagen.goldens.TypedValue;
-import soiagen.goldens.UnitTest;
+import skirout.goldens.Assertion;
+import skirout.goldens.BytesExpression;
+import skirout.goldens.Color;
+import skirout.goldens.Constants;
+import skirout.goldens.KeyedArrays;
+import skirout.goldens.MyEnum;
+import skirout.goldens.Point;
+import skirout.goldens.RecEnum;
+import skirout.goldens.RecStruct;
+import skirout.goldens.StringExpression;
+import skirout.goldens.TypedValue;
+import skirout.goldens.UnitTest;
 
 public class GoldensTest {
 
@@ -187,7 +187,7 @@ public class GoldensTest {
     for (ByteString expectedBytes : input.expectedBytes()) {
       byte[] expectedBytesList = expectedBytes.toByteArray();
       byte[] buffer = new byte[expectedBytesList.length + 2];
-      String prefix = "soia";
+      String prefix = "skir";
       byte[] prefixBytes = prefix.getBytes(StandardCharsets.UTF_8);
       System.arraycopy(prefixBytes, 0, buffer, 0, prefixBytes.length);
       buffer[4] = (byte) 248;
@@ -557,7 +557,7 @@ public class GoldensTest {
 
   private <T> T fromJsonKeepUnrecognized(Serializer<T> serializer, String json) {
     try {
-      return serializer.fromJsonCode(json, UnrecognizedFieldsPolicy.KEEP);
+      return serializer.fromJsonCode(json, UnrecognizedValuesPolicy.KEEP);
     } catch (Exception e) {
       throw new AssertionError("Failed to deserialize " + json + ": " + e);
     }
@@ -581,7 +581,7 @@ public class GoldensTest {
 
   private <T> T fromBytesKeepUnrecognized(Serializer<T> serializer, ByteString bytes) {
     try {
-      return serializer.fromBytes(bytes.toByteArray(), UnrecognizedFieldsPolicy.KEEP);
+      return serializer.fromBytes(bytes.toByteArray(), UnrecognizedValuesPolicy.KEEP);
     } catch (Exception e) {
       throw new AssertionError("Failed to deserialize " + bytes.hex() + ": " + e);
     }

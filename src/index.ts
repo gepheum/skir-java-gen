@@ -1,13 +1,18 @@
+// TODO: add comments to generated code
+// TODO: add comments to records/fields/methods
+// TODO: s/field/variant for enums
+
 import {
   type CodeGenerator,
   type Constant,
   convertCase,
+  Doc,
   type Method,
-  Record,
+  type Record,
   type RecordKey,
   type RecordLocation,
-  ResolvedType,
-} from "soiac";
+  type ResolvedType,
+} from "skir-internal";
 import { z } from "zod";
 import { Namer, toEnumConstantName } from "./naming.js";
 import { TypeSpeller } from "./type_speller.js";
@@ -114,13 +119,13 @@ class JavaSourceFileGenerator {
       //  |___/   \\___/  |_| |_| \\___/  \\__|  \\___| \\__,_||_| \\__|
       //
 
-      // To install the Soia client library, add:
-      //   implementation("land.soia:soia-kotlin-client:latest.release")
+      // To install the skir client library, add:
+      //   implementation("build.skir:skir-kotlin-client:latest.release")
       // to your build.gradle file
 
       `,
-      `package ${this.packagePrefix}soiagen.`,
-      this.modulePath.replace(/\.soia$/, "").replace("/", "."),
+      `package ${this.packagePrefix}skirout.`,
+      this.modulePath.replace(/\.skir$/, "").replace("/", "."),
       ";\n\n",
     );
 
@@ -178,7 +183,7 @@ class JavaSourceFileGenerator {
       const type = typeSpeller.getJavaType(field.type!, "frozen");
       this.push(`private final ${type} ${fieldName};\n`);
     }
-    const unrecognizedFieldsType = `land.soia.internal.UnrecognizedFields<${className}>`;
+    const unrecognizedFieldsType = `build.skir.internal.UnrecognizedFields<${className}>`;
     this.push(`private final ${unrecognizedFieldsType} _u;\n\n`);
 
     // Constructor
@@ -263,7 +268,7 @@ class JavaSourceFileGenerator {
     this.push(
       "@java.lang.Override\n",
       "public java.lang.String toString() {\n",
-      `return SERIALIZER.toJsonCode(this, land.soia.JsonFlavor.READABLE);\n`,
+      `return SERIALIZER.toJsonCode(this, build.skir.JsonFlavor.READABLE);\n`,
       "}\n\n",
     );
 
@@ -282,8 +287,7 @@ class JavaSourceFileGenerator {
     {
       const firstField = fields[0];
       const retType = firstField
-        ? "Builder_At" +
-          convertCase(firstField.name.text, "lower_underscore", "UpperCamel")
+        ? "Builder_At" + convertCase(firstField.name.text, "UpperCamel")
         : "Builder_Done";
       this.push(
         `public static ${retType} builder() {\n`,
@@ -303,14 +307,9 @@ class JavaSourceFileGenerator {
     for (const [index, field] of fields.entries()) {
       const fieldName = namer.structFieldToJavaName(field);
       const nextField = index < fields.length - 1 ? fields[index + 1] : null;
-      const upperCamelName = convertCase(
-        field.name.text,
-        "lower_underscore",
-        "UpperCamel",
-      );
+      const upperCamelName = convertCase(field.name.text, "UpperCamel");
       const retType = nextField
-        ? "Builder_At" +
-          convertCase(nextField.name.text, "lower_underscore", "UpperCamel")
+        ? "Builder_At" + convertCase(nextField.name.text, "UpperCamel")
         : "Builder_Done";
       const paramType = typeSpeller.getJavaType(field.type!, "initializer");
       this.push(
@@ -328,11 +327,7 @@ class JavaSourceFileGenerator {
     // Builder class
     this.push("public static final class Builder implements ");
     for (const field of fields) {
-      const upperCamelName = convertCase(
-        field.name.text,
-        "lower_underscore",
-        "UpperCamel",
-      );
+      const upperCamelName = convertCase(field.name.text, "UpperCamel");
       this.push(`Builder_At${upperCamelName}, `);
     }
     this.push("Builder_Done {\n");
@@ -370,11 +365,7 @@ class JavaSourceFileGenerator {
     // Setters
     for (const field of fields) {
       const fieldName = namer.structFieldToJavaName(field);
-      const upperCamelName = convertCase(
-        field.name.text,
-        "lower_underscore",
-        "UpperCamel",
-      );
+      const upperCamelName = convertCase(field.name.text, "UpperCamel");
       const type = field.type!;
       const javaType = typeSpeller.getJavaType(type, "initializer");
       this.push(
@@ -418,11 +409,12 @@ class JavaSourceFileGenerator {
 
     // _serializerImpl
     {
-      const serializerType = `land.soia.internal.StructSerializer<${className}, ${className}.Builder>`;
+      const serializerType = `build.skir.internal.StructSerializer<${className}, ${className}.Builder>`;
       this.push(
         `private static final ${serializerType} _serializerImpl = (\n`,
-        "new land.soia.internal.StructSerializer<>(\n",
+        "new build.skir.internal.StructSerializer<>(\n",
         `"${getRecordId(recordLocation)}",\n`,
+        `${toJavaStringLiteral(docToCommentText(record.doc))},\n`,
         "DEFAULT,\n",
         `(${className} it) -> it != null ? it.toBuilder() : partialBuilder(),\n`,
         `(${className}.Builder it) -> it.build(),\n`,
@@ -438,14 +430,14 @@ class JavaSourceFileGenerator {
 
     // SERIALIZER
     this.push(
-      `public static final land.soia.Serializer<${className}> SERIALIZER = (\n`,
-      "land.soia.internal.SerializersKt.makeSerializer(_serializerImpl)\n",
+      `public static final build.skir.Serializer<${className}> SERIALIZER = (\n`,
+      "build.skir.internal.SerializersKt.makeSerializer(_serializerImpl)\n",
       ");\n\n",
     );
 
     // TYPE_DESCRIPTOR
     {
-      const typeDescriptorType = `land.soia.reflection.StructDescriptor.Reflective<${className}, ${className}.Builder>`;
+      const typeDescriptorType = `build.skir.reflection.StructDescriptor.Reflective<${className}, ${className}.Builder>`;
       this.push(
         `public static final ${typeDescriptorType} TYPE_DESCRIPTOR = (\n`,
         "_serializerImpl\n",
@@ -456,14 +448,15 @@ class JavaSourceFileGenerator {
     // Finalize serializer
     this.push("static {\n");
     for (const field of fields) {
-      const soiaName = field.name.text;
+      const skirName = field.name.text;
       const javadName = namer.structFieldToJavaName(field);
       this.push(
         "_serializerImpl.addField(\n",
-        `"${soiaName}",\n`,
+        `"${skirName}",\n`,
         '"",\n',
         `${field.number},\n`,
         `${typeSpeller.getSerializerExpression(field.type!)},\n`,
+        `${toJavaStringLiteral(docToCommentText(field.doc))},\n`,
         `(it) -> it.${javadName}(),\n`,
         "(builder, v) -> {\n",
         `builder.${javadName} = v;\n`,
@@ -504,7 +497,7 @@ class JavaSourceFileGenerator {
     }
     for (const field of wrapperFields) {
       this.push(
-        convertCase(field.name.text, "lower_underscore", "UPPER_UNDERSCORE"),
+        convertCase(field.name.text, "UPPER_UNDERSCORE"),
         "_WRAPPER,\n",
       );
     }
@@ -515,24 +508,19 @@ class JavaSourceFileGenerator {
       `public static final ${className} UNKNOWN = new ${className}(Kind.UNKNOWN, null);\n`,
     );
     for (const field of constantFields) {
-      const soiaName = field.name.text;
+      const skirName = field.name.text;
       const name = toEnumConstantName(field);
       this.push(
-        `public static final ${className} ${name} = new ${className}(Kind.${soiaName}_CONST, null);\n`,
+        `public static final ${className} ${name} = new ${className}(Kind.${skirName}_CONST, null);\n`,
       );
     }
     this.pushEol();
 
     // WrapX methods
     for (const field of wrapperFields) {
-      const upperCamelName = convertCase(
-        field.name.text,
-        "lower_underscore",
-        "UpperCamel",
-      );
+      const upperCamelName = convertCase(field.name.text, "UpperCamel");
       const upperUnderscoreName = convertCase(
         field.name.text,
-        "lower_underscore",
         "UPPER_UNDERSCORE",
       );
       const type = field.type!;
@@ -572,14 +560,9 @@ class JavaSourceFileGenerator {
     // asX() methods
     for (const field of wrapperFields) {
       const type = typeSpeller.getJavaType(field.type!, "frozen");
-      const upperCamelName = convertCase(
-        field.name.text,
-        "lower_underscore",
-        "UpperCamel",
-      );
+      const upperCamelName = convertCase(field.name.text, "UpperCamel");
       const upperUnderscoreName = convertCase(
         field.name.text,
-        "lower_underscore",
         "UPPER_UNDERSCORE",
       );
       this.push(
@@ -595,19 +578,11 @@ class JavaSourceFileGenerator {
     // Visitor
     this.push("public interface Visitor<R> {\n", "R onUnknown();\n");
     for (const field of constantFields) {
-      const upperCamelName = convertCase(
-        field.name.text,
-        "UPPER_UNDERSCORE",
-        "UpperCamel",
-      );
+      const upperCamelName = convertCase(field.name.text, "UpperCamel");
       this.push(`R on${upperCamelName}();\n`);
     }
     for (const field of wrapperFields) {
-      const upperCamelName = convertCase(
-        field.name.text,
-        "lower_underscore",
-        "UpperCamel",
-      );
+      const upperCamelName = convertCase(field.name.text, "UpperCamel");
       const type = typeSpeller.getJavaType(field.type!, "frozen");
       this.push(`R on${upperCamelName}(${type} value);\n`);
     }
@@ -620,11 +595,7 @@ class JavaSourceFileGenerator {
     );
     for (const field of constantFields) {
       const upperUnderscoreName = field.name.text;
-      const upperCamelName = convertCase(
-        field.name.text,
-        "UPPER_UNDERSCORE",
-        "UpperCamel",
-      );
+      const upperCamelName = convertCase(field.name.text, "UpperCamel");
       this.push(
         `case ${upperUnderscoreName}_CONST -> visitor.on${upperCamelName}();\n`,
       );
@@ -632,14 +603,9 @@ class JavaSourceFileGenerator {
     for (const field of wrapperFields) {
       const upperUnderscoreName = convertCase(
         field.name.text,
-        "lower_underscore",
         "UPPER_UNDERSCORE",
       );
-      const upperCamelName = convertCase(
-        field.name.text,
-        "lower_underscore",
-        "UpperCamel",
-      );
+      const upperCamelName = convertCase(field.name.text, "UpperCamel");
       const type = typeSpeller.getJavaType(field.type!, "frozen");
       this.push(
         `case ${upperUnderscoreName}_WRAPPER -> visitor.on${upperCamelName}((${type}) value);\n`,
@@ -671,23 +637,24 @@ class JavaSourceFileGenerator {
     this.push(
       "@java.lang.Override\n",
       "public java.lang.String toString() {\n",
-      `return SERIALIZER.toJsonCode(this, land.soia.JsonFlavor.READABLE);\n`,
+      `return SERIALIZER.toJsonCode(this, build.skir.JsonFlavor.READABLE);\n`,
       "}\n\n",
     );
 
     // _serializerImpl
     {
-      const serializerType = `land.soia.internal.EnumSerializer<${className}>`;
-      const unrecognizedEnumType = `land.soia.internal.UnrecognizedEnum<${className}>`;
+      const serializerType = `build.skir.internal.EnumSerializer<${className}>`;
+      const unrecognizedVariantType = `build.skir.internal.UnrecognizedVariant<${className}>`;
       this.push(
         `private static final ${serializerType} _serializerImpl = (\n`,
-        "land.soia.internal.EnumSerializer.Companion.create(\n",
+        "build.skir.internal.EnumSerializer.Companion.create(\n",
         `"${getRecordId(recordLocation)}",\n`,
+        `${toJavaStringLiteral(docToCommentText(record.doc))},\n`,
         `(${className} it) -> it.kind().ordinal(),\n`,
         "Kind.values().length,\n",
         "UNKNOWN,\n",
-        `(${unrecognizedEnumType} it) -> new ${className}(Kind.UNKNOWN, it),\n`,
-        `(${className} it) -> (${unrecognizedEnumType}) it.value\n`,
+        `(${unrecognizedVariantType} it) -> new ${className}(Kind.UNKNOWN, it),\n`,
+        `(${className} it) -> (${unrecognizedVariantType}) it.value\n`,
         ")\n",
         ");\n\n",
       );
@@ -695,14 +662,14 @@ class JavaSourceFileGenerator {
 
     // SERIALIZER
     this.push(
-      `public static final land.soia.Serializer<${className}> SERIALIZER = (\n`,
-      "land.soia.internal.SerializersKt.makeSerializer(_serializerImpl)\n",
+      `public static final build.skir.Serializer<${className}> SERIALIZER = (\n`,
+      "build.skir.internal.SerializersKt.makeSerializer(_serializerImpl)\n",
       ");\n\n",
     );
 
     // TYPE_DESCRIPTOR
     {
-      const typeDescriptorType = `land.soia.reflection.EnumDescriptor.Reflective<${className}>`;
+      const typeDescriptorType = `build.skir.reflection.EnumDescriptor.Reflective<${className}>`;
       this.push(
         `public static final ${typeDescriptorType} TYPE_DESCRIPTOR = (\n`,
         "_serializerImpl\n",
@@ -715,10 +682,11 @@ class JavaSourceFileGenerator {
     for (const field of constantFields) {
       const name = field.name.text;
       this.push(
-        "_serializerImpl.addConstantField(\n",
+        "_serializerImpl.addConstantVariant(\n",
         `${field.number},\n`,
         `"${name}",\n`,
         `Kind.${name}_CONST.ordinal(),\n`,
+        `${toJavaStringLiteral(docToCommentText(field.doc))},\n`,
         `${toEnumConstantName(field)}\n`,
         ");\n",
       );
@@ -731,21 +699,17 @@ class JavaSourceFileGenerator {
         "must-be-object",
       );
       const serializerExpression = typeSpeller.getSerializerExpression(type);
-      const soiaName = field.name.text;
-      const upperCamelName = convertCase(
-        soiaName,
-        "lower_underscore",
-        "UpperCamel",
-      );
+      const skirName = field.name.text;
+      const upperCamelName = convertCase(skirName, "UpperCamel");
       const kindConstName =
-        convertCase(soiaName, "lower_underscore", "UPPER_UNDERSCORE") +
-        "_WRAPPER";
+        convertCase(skirName, "UPPER_UNDERSCORE") + "_WRAPPER";
       this.push(
-        "_serializerImpl.addWrapperField(\n",
+        "_serializerImpl.addWrapperVariant(\n",
         `${field.number},\n`,
         `"${field.name.text}",\n`,
         `Kind.${kindConstName}.ordinal(),\n`,
         `${serializerExpression},\n`,
+        `${toJavaStringLiteral(docToCommentText(field.doc))},\n`,
         `(${javaType} it) -> wrap${upperCamelName}(it),\n`,
         `(${className} it) -> it.as${upperCamelName}()\n`,
         ");\n",
@@ -785,7 +749,7 @@ class JavaSourceFileGenerator {
         break;
       }
     }
-    return modulePath.replace(/\.soia$/, "") + `/${className}.java`;
+    return modulePath.replace(/\.skir$/, "") + `/${className}.java`;
   }
 
   private writeClassForMethods(methods: readonly Method[]): void {
@@ -810,17 +774,18 @@ class JavaSourceFileGenerator {
       method.responseType!,
     );
 
-    const soiaName = method.name.text;
-    const javaName = convertCase(soiaName, "UpperCamel", "UPPER_UNDERSCORE");
+    const skirName = method.name.text;
+    const javaName = convertCase(skirName, "UPPER_UNDERSCORE");
 
-    const methodType = `land.soia.service.Method<${requestType}, ${responseType}>`;
+    const methodType = `build.skir.service.Method<${requestType}, ${responseType}>`;
     this.push(
       `public static final ${methodType} ${javaName} = (\n`,
-      "new land.soia.service.Method<>(\n",
-      `"${soiaName}",\n`,
-      `${method.number},\n`,
+      "new build.skir.service.Method<>(\n",
+      `"${skirName}",\n`,
+      `${method.number}L,\n`,
       `${requestSerializer},\n`,
-      `${responseSerializer}\n`,
+      `${responseSerializer},\n`,
+      `${toJavaStringLiteral(docToCommentText(method.doc))}\n`,
       ")\n",
       ");\n\n",
     );
@@ -883,9 +848,9 @@ class JavaSourceFileGenerator {
       }
       case "array": {
         if (type.key) {
-          return `land.soia.internal.FrozenListKt.emptyKeyedList()`;
+          return `build.skir.internal.FrozenListKt.emptyKeyedList()`;
         } else {
-          return `land.soia.internal.FrozenListKt.emptyFrozenList()`;
+          return `build.skir.internal.FrozenListKt.emptyFrozenList()`;
         }
       }
       case "optional": {
@@ -943,7 +908,7 @@ class JavaSourceFileGenerator {
           "can-be-null",
           it + "_",
         );
-        const frozenListKt = "land.soia.internal.FrozenListKt";
+        const frozenListKt = "build.skir.internal.FrozenListKt";
         if (type.key) {
           const path = type.key.path
             .map((f) => namer.structFieldToJavaName(f.name.text) + "()")
@@ -1096,6 +1061,64 @@ function getRecordId(struct: RecordLocation): string {
     .map((r) => r.name.text)
     .join(".");
   return `${modulePath}:${qualifiedRecordName}`;
+}
+
+function toJavaStringLiteral(input: string): string {
+  const escaped = input.replace(/[\\"\x00-\x1f\x7f-\xff]/g, (char) => {
+    switch (char) {
+      case '"':
+        return '\\"';
+      case "\\":
+        return "\\\\";
+      case "\b":
+        return "\\b";
+      case "\f":
+        return "\\f";
+      case "\n":
+        return "\\n";
+      case "\r":
+        return "\\r";
+      case "\t":
+        return "\\t";
+      default: {
+        // Handle non-printable characters using Unicode escapes (\\uXXXX)
+        const code = char.charCodeAt(0).toString(16).padStart(4, "0");
+        return `\\u${code}`;
+      }
+    }
+  });
+  return `"${escaped}"`;
+}
+
+function commentify(textOrLines: string | readonly string[]): string {
+  const text = (
+    typeof textOrLines === "string" ? textOrLines : textOrLines.join("\n")
+  )
+    .trim()
+    .replace(/\n{3,}/g, "\n\n")
+    .replace("*/", "* /");
+  if (text.length <= 0) {
+    return "";
+  }
+  const lines = text.split("\n");
+  if (lines.length === 1) {
+    return `/** ${text} */\n`;
+  } else {
+    return ["/**\n", ...lines.map((line) => ` * ${line}\n`), " */\n"].join("");
+  }
+}
+
+function docToCommentText(doc: Doc): string {
+  return doc.pieces
+    .map((p) => {
+      switch (p.kind) {
+        case "text":
+          return p.text;
+        case "reference":
+          return "`" + p.referenceRange.text.slice(1, -1) + "`";
+      }
+    })
+    .join("");
 }
 
 export const GENERATOR = new JavaCodeGenerator();

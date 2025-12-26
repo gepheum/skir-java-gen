@@ -1,26 +1,26 @@
+import build.skir.KeyedList;
+import build.skir.service.Method;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import land.soia.KeyedList;
-import land.soia.service.Method;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import soiagen.constants.Constants;
-import soiagen.enums.JsonValue;
-import soiagen.methods.Methods;
-import soiagen.structs.Color;
-import soiagen.structs.Point;
-import soiagen.structs.RecA;
-import soiagen.structs.RecB;
-import soiagen.structs.Triangle;
+import skirout.constants.Constants;
+import skirout.enums.JsonValue;
+import skirout.methods.Methods;
+import skirout.structs.Color;
+import skirout.structs.Point;
+import skirout.structs.RecA;
+import skirout.structs.RecB;
+import skirout.structs.Triangle;
 
-public class SoiagenTest {
+public class SkiroutTest {
   @Test
   public void testMethod() {
     final Method<Point, JsonValue> method = Methods.MY_PROCEDURE;
     Assertions.assertEquals("MyProcedure", method.name());
-    Assertions.assertEquals(1974132327, method.number());
+    Assertions.assertEquals(674706602, method.number());
     Assertions.assertEquals(Point.SERIALIZER, method.requestSerializer());
     Assertions.assertEquals(JsonValue.SERIALIZER, method.responseSerializer());
   }

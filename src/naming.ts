@@ -1,11 +1,11 @@
-import { Field, RecordLocation, convertCase } from "soiac";
+import { Field, RecordLocation, convertCase } from "skir-internal";
 
 export interface ClassName {
   /** The name right after the 'class' keyword. */
   name: string;
   /**
    * Fully qualified class name.
-   * Examples: 'soiagen.Foo', 'soiagen.Foo.Bar'
+   * Examples: 'skirout.Foo', 'skirout.Foo.Bar'
    */
   qualifiedName: string;
 }
@@ -15,15 +15,15 @@ export class Namer {
 
   constructor(private readonly packagePrefix: string) {
     if (packagePrefix.length <= 0) {
-      this.genPackageFirstName = "soiagen";
+      this.genPackageFirstName = "skirout";
     } else {
       this.genPackageFirstName = packagePrefix.split(".")[0]!;
     }
   }
 
   structFieldToJavaName(field: Field | string): string {
-    const soiaName = typeof field === "string" ? field : field.name.text;
-    const lowerCamel = convertCase(soiaName, "lower_underscore", "lowerCamel");
+    const skirName = typeof field === "string" ? field : field.name.text;
+    const lowerCamel = convertCase(skirName, "lowerCamel");
     const nameConflict =
       JAVA_HARD_KEYWORDS.has(lowerCamel) ||
       TOP_LEVEL_PACKAGE_NAMES.has(lowerCamel) ||
@@ -59,8 +59,8 @@ export class Namer {
     const name = parts.at(-1)!;
 
     const path = record.modulePath;
-    const importPath = path.replace(/\.soia$/, "").replace("/", ".");
-    const qualifiedName = `${this.packagePrefix}soiagen.${importPath}.${parts.join(".")}`;
+    const importPath = path.replace(/\.skir$/, "").replace("/", ".");
+    const qualifiedName = `${this.packagePrefix}skirout.${importPath}.${parts.join(".")}`;
 
     return { name, qualifiedName };
   }
@@ -128,6 +128,7 @@ const JAVA_HARD_KEYWORDS: ReadonlySet<string> = new Set([
 ]);
 
 const TOP_LEVEL_PACKAGE_NAMES: ReadonlySet<string> = new Set<string>([
+  "build",
   "java",
   "kotlin",
   "land",
@@ -153,8 +154,8 @@ const GENERATED_STRUCT_SYMBOLS: ReadonlySet<string> = new Set([
 ]);
 
 export function toEnumConstantName(field: Field): string {
-  const soiaName = field.name.text;
-  return soiaName === "SERIALIZER" || soiaName === "TYPE_DESCRIPTOR"
-    ? `${soiaName}_`
-    : soiaName;
+  const skirName = field.name.text;
+  return skirName === "SERIALIZER" || skirName === "TYPE_DESCRIPTOR"
+    ? `${skirName}_`
+    : skirName;
 }

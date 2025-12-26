@@ -12,7 +12,7 @@ repositories {
 
 dependencies {
     implementation 'com.squareup.okio:okio:3.6.0'
-    implementation 'land.soia:soia-kotlin-client:1.1.0'
+    implementation 'build.skir:skir-client:0.0.6'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
     testImplementation 'com.google.truth:truth:1.1.5'
 }
@@ -30,7 +30,7 @@ java {
 spotless {
     java {
         target 'src/**/*.java'
-        targetExclude 'src/main/java/soiagen/**'
+        targetExclude 'src/main/java/skirout/**'
         googleJavaFormat()
     }
 }
