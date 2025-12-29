@@ -2,5 +2,5 @@ srcDir: ./skir-src
 
 generators:
   - mod: ../../../dist/index.js
-    skiroutDir: src/main/java/skirout
+    outDir: src/main/java/skirout
     config: {}
