@@ -5,22 +5,19 @@
 
 Official plugin for generating Java code from [.skir](https://github.com/gepheum/skir) files.
 
-## Installation
-
-From your project's root directory, run `npm i --save-dev skir-java-gen`.
+## Set up
 
 In your `skir.yml` file, add the following snippet under `generators`:
 ```yaml
   - mod: skir-java-gen
+    outDir: ./src/skirout
     config: {}
 ```
 
-The `npm run skirc` command will now generate .java files within the `skirout` directory.
-
-The generated Java code has a runtime dependency on `build.skir:skir-kotlin-client`. Add this line to your `build.gradle` file in the `dependencies` section:
+The generated Java code has a runtime dependency on `build.skir:skir-client`. Add this line to your `build.gradle` file in the `dependencies` section:
 
 ```gradle
-implementation 'build.skir:skir-kotlin-client:1.1.4'  // Pick the latest version
+implementation 'build.skir:skir-client:0.0.6'  // Pick the latest version
 ```
 
 For more information, see this Java project [example](https://github.com/gepheum/skir-java-example).
@@ -229,7 +226,7 @@ System.out.println(serializer.toJsonCode(john, JsonFlavor.READABLE));
 // }
 
 // The dense JSON flavor is the flavor you should pick if you intend to
-// deserialize the value in the future. skir allows fields to be renamed,
+// deserialize the value in the future. Skir allows fields to be renamed,
 // and because field names are not part of the dense JSON, renaming a field
 // does not prevent you from deserializing the value.
 // You should pick the readable flavor mostly for debugging purposes.
@@ -266,8 +263,8 @@ assert reserializedJane.equals(jane);
 ### Frozen lists and copies
 
 ```java
-// Since all skir objects are deeply immutable, all lists contained in a
-// skir object are also deeply immutable.
+// Since all Skir objects are deeply immutable, all lists contained in a
+// Skir object are also deeply immutable.
 // This section helps understand when lists are copied and when they are
 // not.
 
@@ -289,11 +286,8 @@ final User jade =
     User.partialBuilder()
         .setName("Jade")
         .setPets(pets)
-        // 'pets' is mutable, so skir makes an immutable shallow copy of it
+        // 'pets' is mutable, so Skir makes an immutable shallow copy of it
         .build();
-
-// jade.pets().clear();
-// ^ Runtime error: pets is a frozen list
 
 assert pets.equals(jade.pets());
 assert pets != jade.pets();
@@ -302,7 +296,7 @@ final User jack =
     User.partialBuilder()
         .setName("Jack")
         .setPets(jade.pets())
-        // The list is already immutable, so skir does not make a copy
+        // The list is already immutable, so Skir does not make a copy
         .build();
 
 assert jack.pets() == jade.pets();
@@ -314,7 +308,7 @@ assert jack.pets() == jade.pets();
 final UserRegistry userRegistry =
     UserRegistry.builder().setUsers(List.of(john, jane, evilJohn)).build();
 
-// findByKey() returns the user with the given key (specified in the .skir file).
+// find() returns the user with the given key (specified in the .skir file).
 // In this example, the key is the user id.
 // The first lookup runs in O(N) time, and the following lookups run in O(1)
 // time.
@@ -421,4 +415,4 @@ While Java and Kotlin code can interoperate seamlessly, skir provides separate c
 
 Although it's technically feasible to use Kotlin-generated code in a Java project (or vice versa), doing so results in an API that feels unnatural and cumbersome in the calling language. For the best developer experience, use the code generator that matches your project's primary language.
 
-Note that both the Java and Kotlin generated code share the same runtime dependency: `build.skir:skir-kotlin-client`.
+Note that both the Java and Kotlin generated code share the same runtime dependency: `build.skir:skir-client`.
