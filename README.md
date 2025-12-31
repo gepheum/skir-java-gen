@@ -10,8 +10,12 @@ Official plugin for generating Java code from [.skir](https://github.com/gepheum
 In your `skir.yml` file, add the following snippet under `generators`:
 ```yaml
   - mod: skir-java-gen
-    outDir: ./src/skirout
+    outDir: ./src/main/java/skirout
     config: {}
+    # Alternatively:
+    # outDir: ./src/main/kotlin/my/project/skirout
+    # config:
+    #   packagePrefix: my.project.
 ```
 
 The generated Java code has a runtime dependency on `build.skir:skir-client`. Add this line to your `build.gradle` file in the `dependencies` section:
