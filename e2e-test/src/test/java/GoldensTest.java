@@ -431,7 +431,7 @@ public class GoldensTest {
       case BOOL_WRAPPER -> new TypedValueType<>(literal.asBool(), Serializers.bool());
       case INT32_WRAPPER -> new TypedValueType<>(literal.asInt32(), Serializers.int32());
       case INT64_WRAPPER -> new TypedValueType<>(literal.asInt64(), Serializers.int64());
-      case UINT64_WRAPPER -> new TypedValueType<>(literal.asUint64(), Serializers.javaUint64());
+      case HASH64_WRAPPER -> new TypedValueType<>(literal.asHash64(), Serializers.javaHash64());
       case FLOAT32_WRAPPER -> new TypedValueType<>(literal.asFloat32(), Serializers.float32());
       case FLOAT64_WRAPPER -> new TypedValueType<>(literal.asFloat64(), Serializers.float64());
       case TIMESTAMP_WRAPPER -> new TypedValueType<>(

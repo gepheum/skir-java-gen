@@ -874,7 +874,7 @@ class JavaSourceFileGenerator {
             return "false";
           case "int32":
           case "int64":
-          case "uint64":
+          case "hash64":
             return "0";
           case "float32":
             return "0.0f";
@@ -931,7 +931,7 @@ class JavaSourceFileGenerator {
           case "bool":
           case "int32":
           case "int64":
-          case "uint64":
+          case "hash64":
           case "float32":
           case "float64":
             return inputExpr;

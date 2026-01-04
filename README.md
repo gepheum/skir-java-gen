@@ -21,7 +21,7 @@ In your `skir.yml` file, add the following snippet under `generators`:
 The generated Java code has a runtime dependency on `build.skir:skir-client`. Add this line to your `build.gradle` file in the `dependencies` section:
 
 ```gradle
-implementation 'build.skir:skir-client:0.0.6'  // Pick the latest version
+implementation 'build.skir:skir-client:0.1.0'  // Pick the latest version
 ```
 
 For more information, see this Java project [example](https://github.com/gepheum/skir-java-example).

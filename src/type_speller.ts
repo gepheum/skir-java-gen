@@ -74,7 +74,7 @@ export class TypeSpeller {
             case "int32":
               return "java.lang.Integer";
             case "int64":
-            case "uint64":
+            case "hash64":
               return "java.lang.Long";
             case "float32":
               return "java.lang.Float";
@@ -98,7 +98,7 @@ export class TypeSpeller {
             case "int32":
               return "int";
             case "int64":
-            case "uint64":
+            case "hash64":
               return "long";
             case "float32":
               return "float";
@@ -135,8 +135,8 @@ export class TypeSpeller {
             return "build.skir.Serializers.int32()";
           case "int64":
             return "build.skir.Serializers.int64()";
-          case "uint64":
-            return "build.skir.Serializers.javaUint64()";
+          case "hash64":
+            return "build.skir.Serializers.javaHash64()";
           case "float32":
             return "build.skir.Serializers.float32()";
           case "float64":
