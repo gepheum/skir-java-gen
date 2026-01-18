@@ -124,7 +124,7 @@ public class SkiroutTest {
   @Test
   public void testEnumToString() {
     Assertions.assertEquals("\"NULL\"", JsonValue.NULL.toString());
-    Assertions.assertEquals("\"?\"", JsonValue.UNKNOWN.toString());
+    Assertions.assertEquals("\"UNKNOWN\"", JsonValue.UNKNOWN.toString());
     Assertions.assertEquals(
         "{\n  \"kind\": \"array\",\n  \"value\": []\n}",
         JsonValue.wrapArray(new ArrayList<>()).toString());
