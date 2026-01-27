@@ -1153,7 +1153,7 @@ function commentify(textOrLines: string | readonly string[]): string {
   )
     .trim()
     .replace(/\n{3,}/g, "\n\n")
-    .replace("*/", "* /");
+    .replace(/\*\//g, "* /");
   if (text.length <= 0) {
     return "";
   }
