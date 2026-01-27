@@ -1,7 +1,7 @@
 [![npm](https://img.shields.io/npm/v/skir-java-gen)](https://www.npmjs.com/package/skir-java-gen)
 [![build](https://github.com/gepheum/skir-java-gen/workflows/Build/badge.svg)](https://github.com/gepheum/skir-java-gen/actions)
 
-# skir's Java code generator
+# Skir's Java code generator
 
 Official plugin for generating Java code from [.skir](https://github.com/gepheum/skir) files.
 
