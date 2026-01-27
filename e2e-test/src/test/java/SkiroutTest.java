@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import skirout.constants.Constants;
 import skirout.enums.JsonValue;
+import skirout.external.gepheum.fantasy_game_skir_example.fantasy_game.Point2D;
 import skirout.methods.Methods;
 import skirout.structs.Color;
 import skirout.structs.Point;
@@ -189,5 +190,10 @@ public class SkiroutTest {
   public void testEnumTypeDescriptor() {
     // Assertions.assertTrue(JsonValue.TYPE_DESCRIPTOR.asJsonCode().startsWith("{"));
     Assertions.assertTrue(RecA.TYPE_DESCRIPTOR.asJsonCode().startsWith("{"));
+  }
+
+  @Test
+  public void testExternalDependency() {
+    Point2D.builder();
   }
 }

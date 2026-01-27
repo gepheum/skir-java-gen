@@ -4,5 +4,6 @@
 build
 dist
 node_modules
+skir-external
 skirout
 tsconfig.tsbuildinfo

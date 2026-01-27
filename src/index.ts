@@ -122,7 +122,11 @@ class JavaSourceFileGenerator {
 
       `,
       `package ${this.packagePrefix}skirout.`,
-      this.modulePath.replace(/\.skir$/, "").replace("/", "."),
+      this.modulePath
+        .replace(/\.skir$/, "")
+        .replace(/^@/, "external/")
+        .replace(/-/g, "_")
+        .replace(/\//g, "."),
       ";\n\n",
     );
 
@@ -793,7 +797,12 @@ class JavaSourceFileGenerator {
         break;
       }
     }
-    return modulePath.replace(/\.skir$/, "") + `/${className}.java`;
+    return (
+      modulePath
+        .replace(/^@/, "external/")
+        .replace(/-/g, "_")
+        .replace(/\.skir$/, "") + `/${className}.java`
+    );
   }
 
   private writeClassForMethods(methods: readonly Method[]): void {
