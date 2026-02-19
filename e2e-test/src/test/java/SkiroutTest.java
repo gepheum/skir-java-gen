@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import skirout.constants.Constants;
 import skirout.enums.JsonValue;
-import skirout.external.gepheum.fantasy_game_skir_example.fantasy_game.Point2D;
+import skirout.external.gepheum.skir_fantasy_game_example.fantasy_game.Point2D;
 import skirout.methods.Methods;
 import skirout.structs.Color;
 import skirout.structs.Point;

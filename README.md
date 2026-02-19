@@ -262,6 +262,41 @@ assert reserializedEvilJohn.equals(evilJohn);
 assert serializer.fromBytes(johnBytes).equals(john);
 ```
 
+### Primitive serializers
+
+```java
+assert Serializers.bool().toJsonCode(true).equals("1");
+assert Serializers.int32().toJsonCode(3).equals("3");
+assert Serializers.int64().toJsonCode(9223372036854775807L).equals("9223372036854775807");
+assert Serializers.javaHash64()
+    .toJsonCode(new BigInteger("18446744073709551615"))
+    .equals("18446744073709551615");
+assert Serializers.timestamp()
+    .toJsonCode(Instant.ofEpochMilli(1743682787000L))
+    .equals("1743682787000");
+assert Serializers.float32().toJsonCode(3.14f).equals("3.14");
+assert Serializers.float64().toJsonCode(3.14).equals("3.14");
+assert Serializers.string().toJsonCode("Foo").equals("\"Foo\"");
+assert Serializers.bytes()
+    .toJsonCode(ByteString.of((byte) 1, (byte) 2, (byte) 3))
+    .equals("\"AQID\"");
+```
+
+### Composite serializers
+
+```java
+assert Serializers.javaOptional(Serializers.string())
+    .toJsonCode(java.util.Optional.of("foo"))
+    .equals("\"foo\"");
+assert Serializers.javaOptional(Serializers.string())
+    .toJsonCode(java.util.Optional.empty())
+    .equals("null");
+
+assert Serializers.list(Serializers.bool()) //
+    .toJsonCode(List.of(true, false))
+    .equals("[1,0]");
+```
+
 ### Frozen lists and copies
 
 ```java
