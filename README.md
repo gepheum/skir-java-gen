@@ -267,10 +267,10 @@ assert serializer.fromBytes(johnBytes).equals(john);
 ```java
 assert Serializers.bool().toJsonCode(true).equals("1");
 assert Serializers.int32().toJsonCode(3).equals("3");
-assert Serializers.int64().toJsonCode(9223372036854775807L).equals("9223372036854775807");
+assert Serializers.int64().toJsonCode(9223372036854775807L).equals("\"9223372036854775807\"");
 assert Serializers.javaHash64()
     .toJsonCode(new BigInteger("18446744073709551615"))
-    .equals("18446744073709551615");
+    .equals("\"18446744073709551615\"");
 assert Serializers.timestamp()
     .toJsonCode(Instant.ofEpochMilli(1743682787000L))
     .equals("1743682787000");
