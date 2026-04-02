@@ -382,13 +382,13 @@ System.out.println(Constants.TARZAN);
 // }
 ```
 
-### skir services
+### SkirRPC services
 
-#### Starting a skir service on an HTTP server
+#### Starting a SkirRPC service on an HTTP server
 
 Full example [here](https://github.com/gepheum/skir-java-example/blob/main/src/main/java/examples/StartService.java).
 
-#### Sending RPCs to a skir service
+#### Sending RPCs to a SkirRPC service
 
 Full example [here](https://github.com/gepheum/skir-java-example/blob/main/src/main/java/examples/CallService.java).
 
