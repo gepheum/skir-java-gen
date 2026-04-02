@@ -453,3 +453,4 @@ While Java and Kotlin code can interoperate seamlessly, skir provides separate c
 Although it's technically feasible to use Kotlin-generated code in a Java project (or vice versa), doing so results in an API that feels unnatural and cumbersome in the calling language. For the best developer experience, use the code generator that matches your project's primary language.
 
 Note that both the Java and Kotlin generated code share the same runtime dependency: `build.skir:skir-client`.
+
