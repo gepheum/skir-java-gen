@@ -15,6 +15,8 @@ import skirout.external.gepheum.skir_golden_tests.goldens.Assertion;
 import skirout.external.gepheum.skir_golden_tests.goldens.BytesExpression;
 import skirout.external.gepheum.skir_golden_tests.goldens.Color;
 import skirout.external.gepheum.skir_golden_tests.goldens.Constants;
+import skirout.external.gepheum.skir_golden_tests.goldens.EnumA;
+import skirout.external.gepheum.skir_golden_tests.goldens.EnumB;
 import skirout.external.gepheum.skir_golden_tests.goldens.KeyedArrays;
 import skirout.external.gepheum.skir_golden_tests.goldens.MyEnum;
 import skirout.external.gepheum.skir_golden_tests.goldens.Point;
@@ -139,6 +141,62 @@ public class GoldensTest {
       case RESERIALIZE_LARGE_ARRAY_WRAPPER -> {
         Assertion.ReserializeLargeArray value = assertion.asReserializeLargeArray();
         reserializeLargeArrayAndVerify(value);
+      }
+      case ENUM_A_FROM_JSON_IS_CONSTANT_WRAPPER -> {
+        Assertion.EnumAFromJsonIsConstant value = assertion.asEnumAFromJsonIsConstant();
+        String json = evaluateString(value.actual());
+        EnumA actual =
+            value.keepUnrecognized()
+                ? fromJsonKeepUnrecognized(EnumA.SERIALIZER, json)
+                : fromJsonDropUnrecognized(EnumA.SERIALIZER, json);
+        if (actual.kind() != EnumA.Kind.A_CONST) {
+          throw new AssertionError(
+              actual.kind(), EnumA.Kind.A_CONST, "Expected EnumA to be constant A");
+        }
+      }
+      case ENUM_A_FROM_BYTES_IS_CONSTANT_WRAPPER -> {
+        Assertion.EnumAFromBytesIsConstant value = assertion.asEnumAFromBytesIsConstant();
+        ByteString bytes = evaluateBytes(value.actual());
+        EnumA actual =
+            value.keepUnrecognized()
+                ? fromBytesKeepUnrecognized(EnumA.SERIALIZER, bytes)
+                : fromBytesDropUnrecognizedFields(EnumA.SERIALIZER, bytes);
+        if (actual.kind() != EnumA.Kind.A_CONST) {
+          throw new AssertionError(
+              actual.kind(), EnumA.Kind.A_CONST, "Expected EnumA to be constant A");
+        }
+      }
+      case ENUM_B_FROM_JSON_IS_WRAPPER_B_WRAPPER -> {
+        Assertion.EnumBFromJsonIsWrapperB value = assertion.asEnumBFromJsonIsWrapperB();
+        String json = evaluateString(value.actual());
+        EnumB actual =
+            value.keepUnrecognized()
+                ? fromJsonKeepUnrecognized(EnumB.SERIALIZER, json)
+                : fromJsonDropUnrecognized(EnumB.SERIALIZER, json);
+        if (!actual.isB()) {
+          throw new AssertionError(
+              actual.kind(), EnumB.Kind.B_WRAPPER, "Expected EnumB to be wrapper b");
+        }
+        if (!actual.asB().equals(value.expected())) {
+          throw new AssertionError(
+              actual.asB(), value.expected(), "Expected EnumB.b to wrap the expected string");
+        }
+      }
+      case ENUM_B_FROM_BYTES_IS_WRAPPER_B_WRAPPER -> {
+        Assertion.EnumBFromBytesIsWrapperB value = assertion.asEnumBFromBytesIsWrapperB();
+        ByteString bytes = evaluateBytes(value.actual());
+        EnumB actual =
+            value.keepUnrecognized()
+                ? fromBytesKeepUnrecognized(EnumB.SERIALIZER, bytes)
+                : fromBytesDropUnrecognizedFields(EnumB.SERIALIZER, bytes);
+        if (!actual.isB()) {
+          throw new AssertionError(
+              actual.kind(), EnumB.Kind.B_WRAPPER, "Expected EnumB to be wrapper b");
+        }
+        if (!actual.asB().equals(value.expected())) {
+          throw new AssertionError(
+              actual.asB(), value.expected(), "Expected EnumB.b to wrap the expected string");
+        }
       }
       case UNKNOWN -> throw new RuntimeException("Unknown assertion kind");
     }
@@ -445,6 +503,8 @@ public class GoldensTest {
       case POINT_WRAPPER -> new TypedValueType<>(literal.asPoint(), Point.SERIALIZER);
       case COLOR_WRAPPER -> new TypedValueType<>(literal.asColor(), Color.SERIALIZER);
       case MY_ENUM_WRAPPER -> new TypedValueType<>(literal.asMyEnum(), MyEnum.SERIALIZER);
+      case ENUM_A_WRAPPER -> new TypedValueType<>(literal.asEnumA(), EnumA.SERIALIZER);
+      case ENUM_B_WRAPPER -> new TypedValueType<>(literal.asEnumB(), EnumB.SERIALIZER);
       case KEYED_ARRAYS_WRAPPER -> new TypedValueType<>(
           literal.asKeyedArrays(), KeyedArrays.SERIALIZER);
       case REC_STRUCT_WRAPPER -> new TypedValueType<>(literal.asRecStruct(), RecStruct.SERIALIZER);
@@ -527,6 +587,38 @@ public class GoldensTest {
           fromBytesDropUnrecognizedFields(
               MyEnum.SERIALIZER, evaluateBytes(literal.asMyEnumFromBytesDropUnrecognized())),
           MyEnum.SERIALIZER);
+      case ENUM_A_FROM_JSON_KEEP_UNRECOGNIZED_WRAPPER -> new TypedValueType<>(
+          fromJsonKeepUnrecognized(
+              EnumA.SERIALIZER, evaluateString(literal.asEnumAFromJsonKeepUnrecognized())),
+          EnumA.SERIALIZER);
+      case ENUM_A_FROM_JSON_DROP_UNRECOGNIZED_WRAPPER -> new TypedValueType<>(
+          fromJsonDropUnrecognized(
+              EnumA.SERIALIZER, evaluateString(literal.asEnumAFromJsonDropUnrecognized())),
+          EnumA.SERIALIZER);
+      case ENUM_A_FROM_BYTES_KEEP_UNRECOGNIZED_WRAPPER -> new TypedValueType<>(
+          fromBytesKeepUnrecognized(
+              EnumA.SERIALIZER, evaluateBytes(literal.asEnumAFromBytesKeepUnrecognized())),
+          EnumA.SERIALIZER);
+      case ENUM_A_FROM_BYTES_DROP_UNRECOGNIZED_WRAPPER -> new TypedValueType<>(
+          fromBytesDropUnrecognizedFields(
+              EnumA.SERIALIZER, evaluateBytes(literal.asEnumAFromBytesDropUnrecognized())),
+          EnumA.SERIALIZER);
+      case ENUM_B_FROM_JSON_KEEP_UNRECOGNIZED_WRAPPER -> new TypedValueType<>(
+          fromJsonKeepUnrecognized(
+              EnumB.SERIALIZER, evaluateString(literal.asEnumBFromJsonKeepUnrecognized())),
+          EnumB.SERIALIZER);
+      case ENUM_B_FROM_JSON_DROP_UNRECOGNIZED_WRAPPER -> new TypedValueType<>(
+          fromJsonDropUnrecognized(
+              EnumB.SERIALIZER, evaluateString(literal.asEnumBFromJsonDropUnrecognized())),
+          EnumB.SERIALIZER);
+      case ENUM_B_FROM_BYTES_KEEP_UNRECOGNIZED_WRAPPER -> new TypedValueType<>(
+          fromBytesKeepUnrecognized(
+              EnumB.SERIALIZER, evaluateBytes(literal.asEnumBFromBytesKeepUnrecognized())),
+          EnumB.SERIALIZER);
+      case ENUM_B_FROM_BYTES_DROP_UNRECOGNIZED_WRAPPER -> new TypedValueType<>(
+          fromBytesDropUnrecognizedFields(
+              EnumB.SERIALIZER, evaluateBytes(literal.asEnumBFromBytesDropUnrecognized())),
+          EnumB.SERIALIZER);
       case UNKNOWN -> throw new RuntimeException("Unknown typed value");
     };
   }

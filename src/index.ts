@@ -505,6 +505,7 @@ class JavaSourceFileGenerator {
     const { recordMap, typeSpeller } = this;
     const recordLocation = recordMap.get(record.key)!;
     const className = this.namer.getClassName(recordLocation).name;
+    const unrecognizedVariantType = `build.skir.internal.UnrecognizedVariant<${className}>`;
     const { fields: variants } = record;
     const constantVariants = variants.filter((v) => !v.type);
     const wrapperVariants = variants.filter((v) => v.type);
@@ -662,8 +663,25 @@ class JavaSourceFileGenerator {
       public boolean equals(Object other) {
         if (!(other instanceof ${className})) return false;
         final ${className} otherEnum = (${className}) other;
-        if (kind == Kind.UNKNOWN) return otherEnum.kind == Kind.UNKNOWN;
-        return kind == otherEnum.kind && java.util.Objects.equals(value, otherEnum.value);
+        if (kind != otherEnum.kind) return false;
+        return switch (kind) {
+`,
+    );
+    this.push(
+      wrapperVariants
+        .map((variant) => {
+          const upperUnderscoreName = convertCase(
+            variant.name.text,
+            "UPPER_UNDERSCORE",
+          );
+          return `case ${upperUnderscoreName}_WRAPPER -> java.util.Objects.equals(value, otherEnum.value);`;
+        })
+        .join("\n"),
+    );
+    this.push(
+      `
+          default -> true;
+        };
       }\n\n`,
     );
 
@@ -671,8 +689,24 @@ class JavaSourceFileGenerator {
     this.push(
       `@java.lang.Override
       public int hashCode() {
-        final Object v = kind == Kind.UNKNOWN ? null : value;
-        return 31 * java.util.Objects.hashCode(v) + kind.ordinal();
+        return switch (kind) {
+`,
+    );
+    this.push(
+      wrapperVariants
+        .map((variant) => {
+          const upperUnderscoreName = convertCase(
+            variant.name.text,
+            "UPPER_UNDERSCORE",
+          );
+          return `case ${upperUnderscoreName}_WRAPPER -> 31 * java.util.Objects.hashCode(value) + kind.ordinal();`;
+        })
+        .join("\n"),
+    );
+    this.push(
+      `
+          default -> kind.ordinal();
+        };
       }\n\n`,
     );
 
@@ -687,7 +721,6 @@ class JavaSourceFileGenerator {
     // _serializerImpl
     {
       const serializerType = `build.skir.internal.EnumSerializer<${className}>`;
-      const unrecognizedVariantType = `build.skir.internal.UnrecognizedVariant<${className}>`;
       this.push(
         `private static final ${serializerType} _serializerImpl = (\n`,
         "build.skir.internal.EnumSerializer.Companion.create(\n",
@@ -697,7 +730,7 @@ class JavaSourceFileGenerator {
         "Kind.values().length,\n",
         "UNKNOWN,\n",
         `(${unrecognizedVariantType} it) -> new ${className}(Kind.UNKNOWN, it),\n`,
-        `(${className} it) -> (${unrecognizedVariantType}) it.value\n`,
+        `(${className} it) -> it.kind() == Kind.UNKNOWN ? (${unrecognizedVariantType}) it.value : null\n`,
         ")\n",
         ");\n\n",
       );
@@ -735,7 +768,9 @@ class JavaSourceFileGenerator {
         `"${name}",\n`,
         `Kind.${name}_CONST.ordinal(),\n`,
         `${toJavaStringLiteral(docToCommentText(variant.doc))},\n`,
-        `${toEnumConstantName(variant)}\n`,
+        `${toEnumConstantName(variant)},\n`,
+        `(${unrecognizedVariantType} it) -> new ${className}(Kind.${name}_CONST, it),\n`,
+        `(${className} it) -> it.kind() == Kind.${name}_CONST ? (${unrecognizedVariantType}) it.value : null\n`,
         ");\n",
       );
     }
@@ -759,7 +794,8 @@ class JavaSourceFileGenerator {
         `${serializerExpression},\n`,
         `${toJavaStringLiteral(docToCommentText(variant.doc))},\n`,
         `(${javaType} it) -> wrap${upperCamelName}(it),\n`,
-        `(${className} it) -> it.as${upperCamelName}()\n`,
+        `(${className} it) -> it.as${upperCamelName}(),\n`,
+        `() -> ${this.getDefaultExpression(variant.type!)}\n`,
         ");\n",
       );
     }
@@ -882,9 +918,10 @@ class JavaSourceFileGenerator {
           case "bool":
             return "false";
           case "int32":
+            return "0";
           case "int64":
           case "hash64":
-            return "0";
+            return "0L";
           case "float32":
             return "0.0f";
           case "float64":
