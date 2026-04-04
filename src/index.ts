@@ -794,8 +794,7 @@ class JavaSourceFileGenerator {
         `${serializerExpression},\n`,
         `${toJavaStringLiteral(docToCommentText(variant.doc))},\n`,
         `(${javaType} it) -> wrap${upperCamelName}(it),\n`,
-        `(${className} it) -> it.as${upperCamelName}(),\n`,
-        `() -> ${this.getDefaultExpression(variant.type!)}\n`,
+        `(${className} it) -> it.as${upperCamelName}()\n`,
         ");\n",
       );
     }
