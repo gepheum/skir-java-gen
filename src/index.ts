@@ -2,7 +2,7 @@ import {
   type CodeGenerator,
   type Constant,
   convertCase,
-  Doc,
+  type Doc,
   type Method,
   type Record,
   type RecordKey,
@@ -768,9 +768,7 @@ class JavaSourceFileGenerator {
         `"${name}",\n`,
         `Kind.${name}_CONST.ordinal(),\n`,
         `${toJavaStringLiteral(docToCommentText(variant.doc))},\n`,
-        `${toEnumConstantName(variant)},\n`,
-        `(${unrecognizedVariantType} it) -> new ${className}(Kind.${name}_CONST, it),\n`,
-        `(${className} it) -> it.kind() == Kind.${name}_CONST ? (${unrecognizedVariantType}) it.value : null\n`,
+        `${toEnumConstantName(variant)}\n`,
         ");\n",
       );
     }
