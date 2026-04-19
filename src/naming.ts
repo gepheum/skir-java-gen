@@ -158,7 +158,7 @@ const GENERATED_STRUCT_SYMBOLS: ReadonlySet<string> = new Set([
 ]);
 
 export function toEnumConstantName(field: Field): string {
-  const skirName = field.name.text;
+  const skirName = convertCase(field.name.text, "UPPER_UNDERSCORE");
   return skirName === "SERIALIZER" || skirName === "TYPE_DESCRIPTOR"
     ? `${skirName}_`
     : skirName;

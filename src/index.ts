@@ -522,7 +522,10 @@ class JavaSourceFileGenerator {
         UNKNOWN,\n`,
     );
     for (const variant of constantVariants) {
-      this.push(variant.name.text, "_CONST,\n");
+      this.push(
+        convertCase(variant.name.text, "UPPER_UNDERSCORE"),
+        "_CONST,\n",
+      );
     }
     for (const variant of wrapperVariants) {
       this.push(
@@ -541,7 +544,7 @@ class JavaSourceFileGenerator {
       public static final ${className} UNKNOWN = new ${className}(Kind.UNKNOWN, null);\n`,
     );
     for (const variant of constantVariants) {
-      const skirName = variant.name.text;
+      const skirName = convertCase(variant.name.text, "UPPER_UNDERSCORE");
       const name = toEnumConstantName(variant);
       this.push(
         commentify(docToCommentText(variant.doc)),
@@ -638,7 +641,10 @@ class JavaSourceFileGenerator {
       "return switch (kind) {\n",
     );
     for (const variant of constantVariants) {
-      const upperUnderscoreName = variant.name.text;
+      const upperUnderscoreName = convertCase(
+        variant.name.text,
+        "UPPER_UNDERSCORE",
+      );
       const upperCamelName = convertCase(variant.name.text, "UpperCamel");
       this.push(
         `case ${upperUnderscoreName}_CONST -> visitor.on${upperCamelName}();\n`,
@@ -761,7 +767,7 @@ class JavaSourceFileGenerator {
     // Finalize serializer
     this.push("static {\n");
     for (const variant of constantVariants) {
-      const name = variant.name.text;
+      const name = convertCase(variant.name.text, "UPPER_UNDERSCORE");
       this.push(
         "_serializerImpl.addConstantVariant(\n",
         `${variant.number},\n`,
