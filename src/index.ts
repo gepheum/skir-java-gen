@@ -767,12 +767,15 @@ class JavaSourceFileGenerator {
     // Finalize serializer
     this.push("static {\n");
     for (const variant of constantVariants) {
-      const name = convertCase(variant.name.text, "UPPER_UNDERSCORE");
+      const upperUnderscoreName = convertCase(
+        variant.name.text,
+        "UPPER_UNDERSCORE",
+      );
       this.push(
         "_serializerImpl.addConstantVariant(\n",
         `${variant.number},\n`,
-        `"${name}",\n`,
-        `Kind.${name}_CONST.ordinal(),\n`,
+        `"${variant.name.text}",\n`,
+        `Kind.${upperUnderscoreName}_CONST.ordinal(),\n`,
         `${toJavaStringLiteral(docToCommentText(variant.doc))},\n`,
         `${toEnumConstantName(variant)}\n`,
         ");\n",
